@@ -25,7 +25,16 @@ function image(src,name){
 function apply(card,choice){
  const old=card.querySelector(':scope > img, :scope > .emoji');if(!old)return;
  old.replaceWith(choice.kind==='image'?image(choice.url,choice.word):emoji(choice.symbol));
- card.classList.remove('picture-rejected');card.querySelector('.picture-stroke')?.remove();
+ card.classList.remove('picture-rejected');
+ card.querySelector('.picture-stroke')?.remove();
+ card.querySelector('.picture-choice-note')?.remove();
+ // A related or similar-sounding picture depicts another concept. Make that
+ // visible, rather than quietly relabeling it as the recognized word.
+ if(choice.word && choice.word!==card.dataset.word){
+  const note=document.createElement('small');note.className='picture-choice-note';
+  note.textContent='Image: '+choice.word+' / د انځور کلمه: '+choice.word;
+  card.querySelector('.picture-actions')?.before(note);
+ }
 }
 function reject(card){
  card.classList.add('picture-rejected');chosen.delete(card.dataset.word);
