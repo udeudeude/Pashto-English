@@ -1,0 +1,6 @@
+54a96f28ea3eeb86ca96abddeda0c62f1a34d3ce1ec5bdd68a8725730c187efa  wasm/espeak-ng.js
+1d189f15c656725210615c7f4cb164ca80ab546084f2d601787783f11f900f59  wasm/espeak-ng.wasm
+97ac7ac245b28a3a0eed15c61eacbf26835db10ae951858bbfbd7b0247eb6a0a  espeak-ng-data/manifest.json
+b6d0459542330b57f7d65bc91bcd2e24cc9e728104ac8380cc8859a922b96344  espeak-ng-data/core.bin.gz
+a990eb37b0ba219e6cfcabcb540ed46ae79eda6302cdb320c89cc65bec0f6dd5  espeak-ng-data/en_dict.gz
+502a58f8959c8c99780f5da20c3fb9bff5a28055d136e18708bc6141b48af77e  espeak-ng-data/ps_dict.gz

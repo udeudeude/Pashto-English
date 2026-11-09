@@ -1,0 +1,1 @@
+export { c as DATA_PATH, l as DEFAULT_LANGUAGE, u as DataLoader, t as DictionaryNotLoadedError, n as Espeak, r as EspeakError, a as VERSION, d as decode, o as encodeWav, f as httpDataSource, p as jsdelivrDataUrl, i as moduleFactoryOptions, s as toFloat32 } from "./core-w4y-vCu9.js";
