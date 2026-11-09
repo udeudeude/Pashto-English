@@ -1,0 +1,26 @@
+
+/* Picture-card interactions must not be intercepted by Safari selection or scrolling. */
+#picture-column .picture-card{position:relative;touch-action:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+#picture-column .picture-card>img,#picture-column .picture-card>.emoji,#picture-column .picture-card>.word{pointer-events:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+#picture-column .picture-card img{user-select:none;-webkit-user-drag:none}
+.picture-actions{display:flex;justify-content:space-evenly;gap:5px;width:100%;margin-top:5px}
+.picture-actions button{min-width:38px;min-height:42px;background:#fff;color:#1b3652;border:2px solid #c1cfda;border-radius:9px;padding:4px;font-size:1.25rem;touch-action:manipulation}
+.picture-actions button:focus-visible{outline:3px solid #ae5212;outline-offset:2px}
+#picture-column .picture-card.picture-rejected{background:#e3e6ea;border:2px dashed #87949e}
+#picture-column .picture-card.picture-rejected>img,#picture-column .picture-card.picture-rejected>.emoji{filter:grayscale(1);opacity:.28}
+.picture-card.picture-rejected>.word{opacity:.55}
+.picture-stroke{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.picture-sheet[hidden]{display:none!important}
+.picture-sheet{position:fixed;inset:0;z-index:9999;background:#0009;display:flex;justify-content:center;align-items:flex-end}
+.picture-sheet-inner{width:min(100%,640px);max-height:82dvh;overflow:auto;background:#fff;color:#16283b;padding:16px;border-radius:18px 18px 0 0;box-shadow:0 -6px 20px #0002}
+.picture-sheet-inner h2{font-size:1.16rem}
+.picture-sheet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.picture-sheet-grid h3,.picture-sheet-grid p{grid-column:1/-1}
+.picture-sheet-grid h3{font-size:.92rem;margin:12px 0 3px}
+.picture-sheet-grid button{background:#f6f8fb;border:1px solid #d4dde5;min-height:100px;padding:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px}
+.picture-sheet-grid img{width:66px;height:66px;object-fit:contain}
+.picture-sheet-grid small{font-size:.71rem;line-height:1.2;overflow-wrap:anywhere}
+.picture-sheet-emoji{font-size:2.6rem}
+.picture-sheet-close{min-height:42px;padding:9px 16px;background:#e6edf4;color:#183452}
+.picture-note{font-size:.75rem;color:#5f6c79}
+#picture-column .picture-card .word{font-size:.79rem}

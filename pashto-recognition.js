@@ -1,8 +1,9 @@
 // Experimental on-device Pashto recognition using multilingual Whisper.
 // Runs in the browser; downloads model weights on first use.
-import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+// Load the large speech library ONLY after a microphone recording is finished.
+// Top-level network imports previously delayed unrelated interface modules.
 let recognizerPromise=null, recording=null;
-const status=s=>document.getElementById('status').textContent=s;
+const status=s=>(window.pashtoStatus?window.pashtoStatus(s):document.getElementById('status').textContent=s);
 const pashtoButton=document.getElementById('ps');
 pashtoButton.disabled=false;
 pashtoButton.onclick=async()=>{
@@ -13,16 +14,16 @@ pashtoButton.onclick=async()=>{
  catch(e){status('Microphone permission failed: '+e.message);return}
  const recorder=new MediaRecorder(stream),chunks=[];
  recording=recorder;
- pashtoButton.textContent='■ Stop Pashto recording';
+ pashtoButton.textContent='■ Stop / ودروئ';
  status('Listening to Pashto. Tap again to stop.');
  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
  recorder.onerror=()=>status('Audio recording failed.');
  recorder.onstop=async()=>{
-  recording=null;pashtoButton.innerHTML='🎙 پښتو<small>Speak Pashto</small>';
+  recording=null;pashtoButton.innerHTML='🎙 پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small>';
   stream.getTracks().forEach(t=>t.stop());
   try{
    status('Preparing Pashto recognition model. First download may be large…');
-   if(!recognizerPromise)recognizerPromise=pipeline('automatic-speech-recognition','onnx-community/whisper-tiny',{dtype:'q8',device:'wasm'}).catch(e=>{recognizerPromise=null;throw e});
+   if(!recognizerPromise)recognizerPromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1').then(({pipeline})=>pipeline('automatic-speech-recognition','onnx-community/whisper-tiny',{dtype:'q8',device:'wasm'})).catch(e=>{recognizerPromise=null;throw e});
    const recognizer=await recognizerPromise;
    status('Recognizing Pashto speech on this phone…');
    const blob=new Blob(chunks,{type:recorder.mimeType||'audio/webm'});
@@ -36,14 +37,15 @@ pashtoButton.onclick=async()=>{
    await context.close();
    const result=await recognizer(resampled.getChannelData(0),{language:'pashto',task:'transcribe'});
    const transcript=(result.text||'').trim();
-   if(!transcript)throw Error('No Pashto speech was recognized.');
+   if(!transcript||/^\s*\[[^\]]+\]\s*$/u.test(transcript)||!/[\u0600-\u06ff]/u.test(transcript))throw Error('Pashto was not recognized clearly. Please speak again.');
    document.getElementById('original').textContent=transcript;
    status('Translating recognized Pashto…');
    const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(transcript)+'&langpair=ps|en';
    const response=await fetch(url);if(!response.ok)throw Error('Translation service unavailable.');
    const data=await response.json();
    if(data.responseStatus!==200||!data.responseData?.translatedText)throw Error('Translation failed.');
-   const english=data.responseData.translatedText;
+   const english=String(data.responseData.translatedText||'').trim();
+   if(!english||/^\s*\[[^\]]+\]\s*$/u.test(english)||/[\u0600-\u06ff]/u.test(english))throw Error('Translation response was invalid or in the wrong language.');
    const output=document.getElementById('result');output.textContent=english;output.lang='en';
    status('English translation ready. Tap Replay to hear it.');
    window.pashtoEnglishAudio={text:english,lang:'en'};
