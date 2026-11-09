@@ -81,7 +81,7 @@ main.classList.add('visual-layout');
 const aside=document.createElement('aside');
 aside.id='picture-column';
 aside.setAttribute('aria-label','Illustrations in English word order');
-const heading=document.createElement('h2');heading.textContent='Pictures';heading.className='picture-heading';
+const heading=document.createElement('h2');heading.textContent='Pictures / انځورونه';heading.className='picture-heading';
 const stack=document.createElement('div');stack.className='picture-stack';
 const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source');
 for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji / ایموجي']]){
