@@ -83,6 +83,7 @@ for(const [value,label] of [['iconoir','Iconoir + emoji'],['arasaac','ARASAAC + 
 sourcePicker.value='arasaac';
 sourcePicker.onchange=()=>renderPictures();
 pictureColumn.append(pictureHeading,sourcePicker,pictureStack);
+const demo=document.createElement('button');demo.type='button';demo.textContent='Test pictures';demo.style.cssText='font-size:.75rem;min-height:38px;width:100%;padding:6px;margin-bottom:8px;background:#e9eff8;color:#173f85';demo.onclick=()=>{original.textContent='I need a ladder to reach the cashews in the jar on the shelf';englishResult.lang='ps';renderPictures()};pictureColumn.insertBefore(demo,pictureStack);
 const contentColumn=document.createElement('div');contentColumn.className='content-column';
 while(main.firstChild)contentColumn.append(main.firstChild);
 main.append(pictureColumn,contentColumn);
@@ -142,7 +143,7 @@ function iconElement(item){
 function emojiElement(emoji){const span=document.createElement('span');span.className='emoji';span.textContent=emoji;span.setAttribute('aria-hidden','true');return span}
 function renderPictures(){
  pictureStack.replaceChildren();
- const matches=visualMatches();
+ let matches=[];try{matches=visualMatches()}catch(e){console.error('Picture matching failed',e)}
  for(const item of matches){
   const card=document.createElement('div');card.className='picture-card';
   if(sourcePicker.value==='emoji')card.append(emojiElement(item.emoji));
