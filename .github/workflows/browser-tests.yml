@@ -23,6 +23,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check JavaScript syntax
         run: npm run check
+      - name: Test Pashto scoring calculations
+        run: npm run test:transcripts
       - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
       - name: Test mobile browsers
