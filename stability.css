@@ -24,3 +24,16 @@
 .picture-sheet-close{min-height:42px;padding:9px 16px;background:#e6edf4;color:#183452}
 .picture-note{font-size:.75rem;color:#5f6c79}
 #picture-column .picture-card .word{font-size:.79rem}
+
+
+/* Separate category grids preserve grouping even when pictures load asynchronously. */
+.picture-choice-group{grid-column:1/-1;min-width:0;margin:0 0 12px}
+.picture-choice-group h3{margin:10px 0 8px;font-size:1rem}
+.picture-choice-candidates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.picture-choice-candidates .picture-note{grid-column:1/-1;margin:3px 0}
+.picture-choice-candidates button{min-width:0;border-radius:12px;touch-action:manipulation}
+.picture-choice-candidates img{display:block;width:min(100%,88px);height:88px;object-fit:contain}
+.picture-choice-candidates button small{overflow-wrap:anywhere;text-align:center;color:#264966}
+@media(max-width:390px){.picture-choice-candidates{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.picture-choice-note{display:block;color:#4a5b6c;font-size:.65rem;line-height:1.25;text-align:center;max-width:100%;overflow-wrap:anywhere}

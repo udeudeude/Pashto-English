@@ -25,7 +25,16 @@ function image(src,name){
 function apply(card,choice){
  const old=card.querySelector(':scope > img, :scope > .emoji');if(!old)return;
  old.replaceWith(choice.kind==='image'?image(choice.url,choice.word):emoji(choice.symbol));
- card.classList.remove('picture-rejected');card.querySelector('.picture-stroke')?.remove();
+ card.classList.remove('picture-rejected');
+ card.querySelector('.picture-stroke')?.remove();
+ card.querySelector('.picture-choice-note')?.remove();
+ // A related or similar-sounding picture depicts another concept. Make that
+ // visible, rather than quietly relabeling it as the recognized word.
+ if(choice.word && choice.word!==card.dataset.word){
+  const note=document.createElement('small');note.className='picture-choice-note';
+  note.textContent='Image: '+choice.word+' / د انځور کلمه: '+choice.word;
+  card.querySelector('.picture-actions')?.before(note);
+ }
 }
 function reject(card){
  card.classList.add('picture-rejected');chosen.delete(card.dataset.word);
@@ -34,55 +43,116 @@ function reject(card){
  for(const [key,val] of Object.entries({x1:'8',y1:'8',x2:'92',y2:'92',stroke:'#d92d20','stroke-width':'7','stroke-linecap':'round'}))line.setAttribute(key,val);
  svg.append(line);card.append(svg);setTimeout(()=>svg.remove(),700);
 }
+// Every category prefers actual public pictograms; emoji are only a last resort.
 function group(en,pa){
- const h=document.createElement('h3');h.textContent=en+' / '+pa;grid.append(h);
+ const section=document.createElement('section');section.className='picture-choice-group';
+ const h=document.createElement('h3');h.textContent=en+' / '+pa;
+ const items=document.createElement('div');items.className='picture-choice-candidates';
+ section.append(h,items);grid.append(section);
+ return items;
 }
-function option(card,choice,source){
+function option(container,card,choice,source){
+ if(!choice?.url && choice?.kind!=='emoji')return;
  const b=document.createElement('button');b.type='button';
- b.append(choice.kind==='image'?image(choice.url,choice.word):emoji(choice.symbol));
- const name=choice.word||card.dataset.word,small=document.createElement('small');
- small.textContent=name+(ps[name]?' / '+ps[name]:'')+' · '+source;b.append(small);
+ const name=choice.word||card.dataset.word;
+ const visual=choice.kind==='image'?image(choice.url,name):emoji(choice.symbol||'❔');
+ b.append(visual);
+ const small=document.createElement('small');
+ const provenance=source||choice.source||'Picture / انځور';
+ small.textContent=name+(ps[name]?' / '+ps[name]:'')+' · '+provenance;
+ b.setAttribute('aria-label',name+(ps[name]?' / '+ps[name]:'')+' · '+provenance);
+ b.append(small);
+ if(choice.kind==='image'){
+   // Do not turn an unavailable image into another unexplained emoji.
+   visual.onerror=()=>b.remove();
+ }
  b.onclick=()=>{chosen.set(card.dataset.word,choice);apply(card,choice);close.click()};
- grid.append(b);
+ container.append(b);
+ return b;
 }
-async function fromArasaac(word){
- if(cache.has(word))return cache.get(word);
- let candidates=[];
- try{
-  const response=await fetch('https://api.arasaac.org/v1/pictograms/en/search/'+encodeURIComponent(word));
-  if(response.ok){
-   const list=await response.json();
-   candidates=list.filter(item=>(item.keywords||[]).some(k=>k.keyword?.toLowerCase()===word.toLowerCase())).slice(0,12)
-    .map(item=>({kind:'image',word,url:'https://static.arasaac.org/pictograms/'+item._id+'/'+item._id+'_300.png'}));
-  }
- }catch(e){/* Offline options are still available. */}
- cache.set(word,candidates);return candidates;
+function note(container,en,pa){
+ const p=document.createElement('p');p.className='picture-note';
+ p.textContent=en+' / '+pa;container.append(p);return p;
 }
 async function openOptions(card){
  const word=card.dataset.word,request=++serial;
- overlay.hidden=false;title.textContent='Pictures for '+word+' / د انځور بدیلونه';grid.replaceChildren();
- group('Same word','هماغه کلمه');
- const entry=window.__pictureVocab?.find(x=>x.label===word);
- option(card,{kind:'emoji',word,symbol:entry?.emoji||symbols[word]||'❔'},'Emoji');
- if(entry?.icon)option(card,{kind:'image',word,url:'https://api.iconify.design/iconoir/'+encodeURIComponent(entry.icon)+'.svg'},'Iconoir');
- const status=document.createElement('p');status.className='picture-note';status.textContent='Searching for pictures… / د انځورونو لټون…';grid.append(status);
- const pictures=await fromArasaac(word);
- if(overlay.hidden||serial!==request)return;
- status.remove();
- for(const pict of pictures)option(card,pict,'ARASAAC');
- group('Related things','اړوند شیان');
- for(const name of related[word]||[])option(card,{kind:'emoji',word:name,symbol:symbols[name]||'❔'},'Related / اړوند');
- group('Similar-sounding words','ورته غږېدونکې کلمې');
+ const catalog=window.pictureCatalog;
+ overlay.hidden=false;
+ title.textContent='Pictures for '+word+' / د انځور بدیلونه';
+ grid.replaceChildren();
+ const exact=group('Same word: '+word,'هماغه کلمه');
+ const relatedItems=group('Related concepts','اړوند مفاهیم');
+ const soundingItems=group('Similar-sounding words','ورته غږېدونکې کلمې');
  const source=$('original')?.textContent||'';
- if(/[\u0600-\u06ff]/.test(source)){
-  const note=document.createElement('p');note.className='picture-note';
-  note.textContent='Pashto sound-alikes require verified pronunciation data. / د پښتو د ورته غږونو لپاره تایید شوي معلومات پکار دي.';grid.append(note);
- }else{
-  for(const name of sounding[word]||[])option(card,{kind:'emoji',word:name,symbol:symbols[name]||'❔'},'Sounds similar / ورته غږ');
+ const sourceIsPashto=/[\u0600-\u06ff]/u.test(source);
+ // Show existing image on the card as a choice, including its original source.
+ const current=card.querySelector(':scope > img');
+ const seen={exact:new Set(),related:new Set(),sounding:new Set()};
+ function add(target,seenGroup,choice,caption){
+  if(overlay.hidden||request!==serial)return;
+  if(choice?.url && seen[seenGroup].has(choice.url))return;
+  if(choice?.url)seen[seenGroup].add(choice.url);
+  option(target,card,choice,caption);
  }
- const note=document.createElement('p');note.className='picture-note';
- note.textContent='A picture is a suggestion, not a change to the translation. / انځور وړاندیز دی؛ ژباړه نه بدلوي.';grid.append(note);
+ if(current?.src)add(exact,'exact',{kind:'image',word,url:current.src,source:'Current picture'},'Current / اوسنی');
+ for(const choice of catalog?.immediate(word)||[])add(exact,'exact',choice,'Iconify');
+ const searchingExact=note(exact,'Searching existing pictograms…','شته انځورونه لټول کېږي…');
+ // Render high-confidence, curated icons immediately, so pressing the picker
+ // never has to wait for all remote searches before showing useful pictures.
+ const relatedWords=(related[word]||[]).slice(0,6);
+ const soundingWords=sourceIsPashto?[]:(sounding[word]||[]).slice(0,5);
+ for(const relatedWord of relatedWords)
+  for(const choice of catalog?.immediate(relatedWord)||[])add(relatedItems,'related',choice,'Related / اړوند');
+ if(sourceIsPashto){
+  note(soundingItems,'Pashto sound-alikes need verified pronunciation data.','د پښتو ورته غږونو لپاره تایید شوې تلفظي سرچینې پکار دي.');
+ }else{
+  for(const similarWord of soundingWords)
+   for(const choice of catalog?.immediate(similarWord)||[])add(soundingItems,'sounding',choice,'Similar sound / ورته غږ');
+ }
+ const loadingRelated=relatedWords.length?note(relatedItems,'Finding related pictures…','اړوند انځورونه لټول کېږي…'):null;
+ const loadingSound=soundingWords.length?note(soundingItems,'Finding similar-sounding words…','ورته غږېدونکي انځورونه لټول کېږي…'):null;
+ const isCurrent=()=>!overlay.hidden&&request===serial;
+ async function loadGroup(words,target,seenGroup,limit,caption,loading){
+  if(!catalog){loading?.remove();return;}
+  // The catalog caches results, and each request has its own short timeout.
+  const data=await Promise.all(words.map(w=>catalog.find(w,{max:limit}).catch(()=>[])));
+  if(!isCurrent())return;
+  loading?.remove();
+  for(let i=0;i<words.length;i++)
+   for(const choice of data[i])add(target,seenGroup,choice,caption);
+ }
+ const jobs=[
+   (async()=>{
+     const images=await (catalog?.find(word,{max:10})||Promise.resolve([])).catch(()=>[]);
+     if(!isCurrent())return;
+     searchingExact.remove();
+     for(const choice of images)add(exact,'exact',choice,choice.source);
+     if(!exact.querySelector('button')){
+       note(exact,'No exact pictogram found; do not substitute an unrelated object.','سم انځور ونه موندل شو؛ د بل شي انځور مه کاروئ.');
+     }
+   })(),
+   loadGroup(relatedWords,relatedItems,'related',2,'Related image / اړوند انځور',loadingRelated)
+ ];
+ if(!sourceIsPashto)jobs.push(loadGroup(soundingWords,soundingItems,'sounding',2,'Similar sound / ورته غږ',loadingSound));
+ await Promise.all(jobs);
+ if(!isCurrent())return;
+ // Expose emoji only when a category genuinely has no retrievable image.
+ for(const [target,category,terms] of [
+  [relatedItems,'related',relatedWords],
+  [soundingItems,'sounding',soundingWords]
+ ]){
+   if(target.querySelector('button')||!terms.length)continue;
+   note(target,'No pictograms loaded; simplified symbols below.','انځورونه ښکته نه شول؛ لاندې ساده نښې دي.');
+   for(const candidate of terms){
+     const symbol=symbols[candidate];
+     if(symbol)option(target,card,{kind:'emoji',word:candidate,symbol},'Emoji fallback / د ایموجي بدیل');
+   }
+ }
+ const disclaimer=document.createElement('p');disclaimer.className='picture-note';
+ disclaimer.textContent='These are suggested illustrations, not verified meanings. Choosing one never changes the translation. / دا وړاندیز شوي انځورونه دي، تایید شوې ماناوې نه دي؛ په ټاکلو سره ژباړه نه بدلېږي.';
+ grid.append(disclaimer);
 }
+
 function enhance(card){
  if(card.dataset.controls==='active')return;
  const label=card.querySelector('.word')?.textContent?.trim();if(!label)return;

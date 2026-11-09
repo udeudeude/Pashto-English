@@ -183,3 +183,71 @@ test('failed translation cannot leave pictures that look like a successful resul
  await expect(page.locator('#picture-column .picture-card')).toHaveCount(0);
  await expect(page.locator('#picture-column .picture-stack')).toContainText('له ژباړې وروسته');
 });
+
+
+test('real image alternatives are offered for same, related and similar-sounding words',async({page})=>{
+ const testSvg='<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="12" fill="currentColor"/></svg>';
+ const requested=[];
+ await page.route(/https:\/\/api\.arasaac\.org\/v1\/pictograms\/en\/search\//,route=>{
+  const word=decodeURIComponent(route.request().url().split('/').pop()).toLowerCase();
+  requested.push(word);
+  return route.fulfill({status:200,contentType:'application/json',
+   body:JSON.stringify([{_id:101,keywords:[{keyword:word}]}])});
+ });
+ await page.route(/https:\/\/static\.arasaac\.org\/pictograms\//,route=>route.fulfill({
+  status:200,contentType:'image/svg+xml',body:testSvg
+ }));
+ await page.route(/https:\/\/api\.iconify\.design\/search\?/,route=>route.fulfill({
+  status:200,contentType:'application/json',body:JSON.stringify({icons:['mdi:bookshelf']})
+ }));
+ await page.route(/https:\/\/api\.iconify\.design\/.+\.svg/,route=>route.fulfill({
+  status:200,contentType:'image/svg+xml',body:testSvg
+ }));
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need the shelf';
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='زه یوې طاقچې ته اړتیا لرم';
+ });
+ const card=page.locator('#picture-column .picture-card');
+ await expect(card).toHaveCount(1);
+ await expect(card.locator('img')).toHaveCount(1);
+ await expect.poll(()=>card.locator('img').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+ await card.locator('.picture-actions button').nth(1).click();
+ await expect(page.locator('.picture-sheet')).toBeVisible();
+ const groups=page.locator('.picture-choice-group');
+ await expect(groups).toHaveCount(3);
+ await expect.poll(()=>groups.nth(0).locator('img').count()).toBeGreaterThan(0);
+ await expect.poll(()=>groups.nth(1).locator('img').count()).toBeGreaterThan(0);
+ await expect.poll(()=>groups.nth(2).locator('img').count()).toBeGreaterThan(0);
+ expect(requested).toContain('shelf');
+ expect(requested).toContain('cabinet');
+ expect(requested).toContain('shell');
+ await groups.nth(1).getByRole('button',{name:/cabinet/i}).first().click();
+ await expect(page.locator('.picture-sheet')).toBeHidden();
+ await expect(card.locator('.word')).toHaveText('shelf');
+ await expect(card.locator('.picture-choice-note')).toContainText('Image: cabinet');
+});
+
+test('a cashew is never silently illustrated as a peanut',async({page})=>{
+ await page.route(/https:\/\/api\.arasaac\.org\/v1\/pictograms\/en\/search\//,route=>
+  route.fulfill({status:200,contentType:'application/json',
+   body:JSON.stringify([{_id:99,keywords:[{keyword:'peanut'}]}])})
+ );
+ await page.route(/https:\/\/api\.iconify\.design\/search\?/,route=>
+  route.fulfill({status:200,contentType:'application/json',body:'{"icons":[]}'})
+ );
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need cashews';
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='کاجو';
+ });
+ const card=page.locator('#picture-column .picture-card');
+ await expect(card).toHaveCount(1);
+ await expect(card.locator('.word')).toHaveText('cashew');
+ await expect(card.locator('img')).toHaveCount(0);
+ await card.locator('.picture-actions button').nth(1).click();
+ await expect(page.locator('.picture-choice-group').first()).toContainText('No exact pictogram found');
+ const related=page.locator('.picture-choice-group').nth(1);
+ await expect(related).toContainText('peanut');
+ await expect(page.locator('.picture-sheet h2')).toContainText('cashew');
+});

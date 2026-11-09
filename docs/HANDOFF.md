@@ -9,6 +9,7 @@ Updated: 2026-11-09
 - Production branch: `main`
 - **Last completed development branch:** `fix/shared-translation-and-self-test` (merged into `main`)
 - **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/3
+- **Current in-review image fix:** https://github.com/udeudeude/Pashto-English/pull/4 on branch `fix/real-picture-alternatives`.
 
 Future ChatGPT Work and Chat sessions should check the latest branch, open pull requests, test results and this file **before doing new work**. Do not repeat implemented features. PR #3 was merged after green checks; review newly opened PRs before starting work.
 
@@ -55,3 +56,11 @@ Future ChatGPT Work and Chat sessions should check the latest branch, open pull 
 ## Handoff discipline
 
 Keep work in a separate topic branch and open a pull request promptly. Push after every useful change. Record failed experiments as well as successful ones. Update this file at the end of each substantial session; explicitly state whether the pull request was merged and which tests passed. Never leave useful work only in an unpushed local workspace.
+
+## Current picture fix (pull request #4, NOT YET IN PRODUCTION)
+
+A November 9 iPhone screenshot showed that the picker offered only emoji. Source inspection confirmed that `stability.js` hard-coded emoji for all related and similar-sounding suggestions; `visual-vocabulary.js` also suppressed primary picture searches for `shelf` and `cashew`. The new `picture-catalog.js` searches existing ARASAAC pictograms and Iconify icons for all categories. It supplies immediate known shelving icons, lets network images load asynchronously, deduplicates repeated images, filters mislabeled search results, and retains emoji only as a last resort. Selecting a related image leaves the translation word untouched but visibly identifies the illustrated concept. Pictogram author and license notices are in Compatibility and privacy.
+
+Pull request #4 adds browser regression tests using mocked source endpoints. **Before merging, check the latest workflow run and verify both mobile browser projects pass.** After merging, inspect the live iPhone site and check that the bookshelf is a real pictogram rather than an emoji. The app needs a better way to evaluate and retain semantic correctness of pictures; a successful image load is not proof of a good semantic match.
+
+Do not create or edit graphics to solve this; use existing appropriately licensed image resources.

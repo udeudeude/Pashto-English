@@ -14,7 +14,7 @@ The left picture column displays concepts in the order of their **English** occu
 
 - `index.html` contains the main interface, English browser recognition, text translation, and playback.
 - `visual-vocabulary.js` creates the picture column. It is a limited English lexicon, not a full parser.
-- `stability.js` provides visible reject/alternatives buttons and optional swipe/hold gestures. `stability.css` contains its styles. It must load independently of any remote speech-model library.
+- `stability.js` provides visible reject/alternatives buttons and optional swipe/hold gestures. `stability.css` contains its styles. `picture-catalog.js` is the shared provider for real ARASAAC and Iconify images in the main column **and** all picker categories. Emoji are fallbacks, not preferred illustrations. These files must load independently of remote speech-model libraries.
 - `pashto-recognition.js` experimentally loads Whisper on demand. Accuracy and runtime on phones **remain unverified**.
 - Pashto speech synthesis: **experimental self-hosted eSpeak NG build** in `vendor/pashto-voice/` merged in pull request #2 and deployed from `main`. **Automated** mobile-sized WebKit/Chromium and Node waveform checks passed. Physical phone testing, speaker intelligibility evaluation, and translation quality remain unverified.
 - The public MyMemory text translation endpoint has usage limits and unreliable outputs. It must not be represented as free unlimited reliable translation.
@@ -26,7 +26,7 @@ The left picture column displays concepts in the order of their **English** occu
 2. Create a **new topic branch**, open a pull request, and merge only after checking tests and concurrent changes. Never force-push, overwrite another branch, or work around a failed check without explanation.
 3. Keep the GitHub Pages production site on `main`. Branch changes are *not* live until merged/deployed.
 4. Run `npm install`, `npm run check`, and `npm test`. CI runs Android-sized Chromium and iPhone-sized WebKit tests. Browser emulation is not physical device testing.
-5. For visual defects, reproduce on a phone-size viewport and inspect console errors, loaded assets, touch behavior, and screenshot. Do not repeatedly claim untested fixes work.
+5. For visual defects, reproduce on a phone-size viewport and inspect console errors, loaded images, touch behavior, and screenshot. Test the exact/related/similar-sound categories and inspect broken image requests. Do not repeatedly claim untested fixes work.
 6. Do not make remote network/model imports a prerequisite for rendering the core interface.
 7. Use and credit existing appropriately licensed icons and pictograms. **Never generate or modify images** unless the user explicitly asks for image creation or editing.
 8. No secrets, paid services, private recordings, or uploaded identifying conversation data in the repository. Public speech corpora may prohibit redistribution even if labeled CC0.
