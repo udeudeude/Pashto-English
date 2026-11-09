@@ -73,6 +73,7 @@ const words = [
  ['three','3️⃣','number-3-square','three']
 ].map(([label,emoji,icon,forms])=>({label,emoji,icon,forms:forms.split(' ')}));
 
+window.__pictureVocab=words;
 const result=document.getElementById('result');
 const original=document.getElementById('original');
 const main=document.querySelector('main');
