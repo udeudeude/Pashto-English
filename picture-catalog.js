@@ -8,7 +8,7 @@
  const iconApi='https://api.iconify.design/';
  const directIcons={
    shelf:['mdi:bookshelf'],bookcase:['mdi:bookshelf'],bookshelf:['mdi:bookshelf'],
-   rack:['mdi:bookshelf'],cabinet:['mdi:cabinet'],drawer:['mdi:file-cabinet'],
+   rack:['mdi:library-shelves'],cabinet:['mdi:cabinet'],drawer:['mdi:file-cabinet'],
    shell:['game-icons:seashell','mdi:sea-shell'],
    self:['mdi:account'],cash:['mdi:cash'],letter:['mdi:email-outline'],
    car:['mdi:car'],pot:['mdi:pot'],cap:['mdi:baseball-cap'],
