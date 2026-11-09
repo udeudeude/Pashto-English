@@ -5,7 +5,10 @@ on:
   push:
     branches:
       - main
-      - 'stabilization/**'
+
+concurrency:
+  group: mobile-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   browser-tests:
