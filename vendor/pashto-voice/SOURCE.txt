@@ -1,0 +1,5 @@
+Experimental eSpeak NG Pashto voice: GPL-3.0-or-later
+Generated from https://github.com/Spelling-Creator/spellophone commit f6dc436c9cd2e9cc38b0f787f7c1235aa838d7e3
+With https://github.com/espeak-ng/espeak-ng commit 688cb60368d6e0998f3632af8d1c3c2ad4191fc2
+Compiled using emsdk 6.0.12, pnpm 12.4.1, Node 24.
+No fluent-speaker intelligibility validation yet.
