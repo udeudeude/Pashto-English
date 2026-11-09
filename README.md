@@ -71,3 +71,13 @@ Open **Try without another speaker / د بل ویونکي پرته ازموین�
 The app shares one translation and replay controller for both directions, clears stale translations after failures, validates obvious service placeholders, and avoids displaying vocabulary illustrations as if a failed translation were successful.
 
 For reproducible evaluation using publicly licensed transcribed Pashto recordings, consult [Pashto recognition evaluation](docs/PASHTO_RECOGNITION_EVALUATION.md). Do not redistribute audio or identifiable speaker data.
+
+## Picture sources and licenses
+
+The application prefers existing, labeled images from ARASAAC and Iconify rather than generated illustrations. The shared `picture-catalog.js` searches both providers for the vertical picture column and the picker. ARASAAC pictures are selected only when the provider's English keywords match the requested concept. Related and similar-sounding word choices are labeled as separate concepts, not silently substituted for the original words.
+
+ARASAAC pictograms are created by **Sergio Palao**, owned by the **Government of Aragón**, and distributed under **Creative Commons Attribution–NonCommercial–ShareAlike**. Their terms require the author, government, origin, and license to be credited and exclude commercial uses: https://arasaac.org/terms-of-use . The website is intended as a free educational tool.
+
+Iconify hosts existing icon collections; **each icon collection has its own license**, rather than sharing one Iconify-wide license: https://iconify.design/docs/icons/icon-set-basics.html . For example, Material Design Icons (including the verified bookshelf and library-shelves icons) are distributed under Apache 2.0.
+
+If external image searches are unavailable, the interface retains simplified symbols, but does not intentionally illustrate *cashew* using a peanut or *shelf* using a stack of books. Existing images are suggestions until their contextual appropriateness has been checked.
