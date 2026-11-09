@@ -8,11 +8,11 @@ A free, phone-first, voice-to-voice translation project for English speakers com
 
 ### Try it
 
-Once GitHub Pages is enabled for the main branch at repository root, open:
+The production site is deployed from the main branch:
 
 https://udeudeude.github.io/Pashto-English/
 
-In repository Settings → Pages, select **Deploy from a branch**, **main**, **/(root)**.
+GitHub Pages deployment from **main** is already configured. New topic-branch commits are not visible on the production site until merged.
 
 ### Current implementation and limitations
 
@@ -43,3 +43,17 @@ In repository Settings → Pages, select **Deploy from a branch**, **main**, **/
 ## Development
 
 This is a static web app. Open `index.html` through a local development server or GitHub Pages over HTTPS. Microphone permissions require a secure context. No build dependencies are needed for the prototype.
+
+## Development workflow
+
+Read [AGENTS.md](AGENTS.md) before working on the repository.
+
+1. Work on a separate topic branch.
+2. Run `npm install`, `npm run check`, and `npm test` (browser tests).
+3. Open a pull request and inspect the automated results.
+4. Merge verified changes to `main` to update GitHub Pages.
+5. Verify on a real iPhone and Android phone before declaring touchscreen or speech functionality fixed.
+
+The test suite exercises Chromium with an Android layout and WebKit with an iPhone layout. It does **not** prove on-device speech recognition, intelligible Pashto output, or real iPhone Safari touch handling. Those require additional physical-device and fluent-speaker testing.
+
+The original `touch-controls.js`, `bilingual-interface.js`, and `picture-corrections.js` modules were replaced after problems on iPhone. They remain as legacy source files but are not loaded by the app. Do not reintroduce them.
