@@ -112,5 +112,9 @@
    promise.then(result=>{if(!result.length)cache.delete(key)},()=>cache.delete(key));
    return promise;
  }
- window.pictureCatalog={find};
+ function immediate(term){
+   const word=normalize(term);
+   return (directIcons[word]||[]).map(id=>({kind:'image',word,source:'Iconify',url:iconUrl(id)}));
+ }
+ window.pictureCatalog={find,immediate};
 })();
