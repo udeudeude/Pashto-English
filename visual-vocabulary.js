@@ -1,7 +1,7 @@
 // Vocabulary visualization: ordered English tokens, with a consistent picture column.
 // External libraries are optional enhancements. Emoji always remain as a fallback.
 const words = [
- ['house','🏠','home','house houses home homes','home'],
+ ['house','🏠','home','house houses home homes'],
  ['person','🧍','user','person people human'],
  ['child','🧒','user','child children kid kids baby babies'],
  ['family','👨‍👩‍👧','group','family families'],
@@ -110,8 +110,8 @@ style.textContent=`
 document.head.append(style);
 const stop=new Set('i me my mine you your yours he she it we they them the a an to of in on at for from with by and or but is are was were be been being have has had do does did need needs needed can could would should will this that these those there here as if then than into onto about today tomorrow before after very just please'.split(' '));
 const irregular={cashews:'cashew',shelves:'shelf',knives:'knife',feet:'foot',teeth:'tooth',children:'child',men:'man',women:'woman'};
-const emoji={ladder:'🪜',cashew:'🥜',jar:'🫙',shelf:'🗄️',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
-const verifiedSearch={ladder:'ladder',jar:'jar',shelf:'shelf',cashew:null};
+const emoji={ladder:'🪜',cashew:'🥜',jar:'🫙',shelf:'📚',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
+const verifiedSearch={ladder:'ladder',jar:'jar',shelf:null,cashew:null};
 const iconCache=new Map();
 let renderVersion=0;
 function englishText(){
