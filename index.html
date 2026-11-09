@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14283c"><title>Pashto ↔ English Voice</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#16283b;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:22px 16px 50px}h1{font-size:1.5rem;margin:0 0 8px}p{line-height:1.45}.muted{color:#536578}.panel{background:white;border:1px solid #dce3e9;border-radius:20px;padding:20px;margin:18px 0}button{font:inherit;cursor:pointer;border:0;border-radius:18px;padding:18px;min-height:76px}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.english{background:#dbe9ff;color:#173f85}.pashto{background:#d8f3e2;color:#125b35}.choices button{font-size:1.35rem;font-weight:750}.choices small{display:block;font-size:.78rem;margin-top:6px}#status{font-weight:650;min-height:3em}#result{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.3rem;min-height:3em}#original{white-space:pre-wrap;overflow-wrap:anywhere}#replay{width:100%;background:#1c3853;color:white}#replay:disabled{background:#9aa6b0}details{margin-top:18px}summary{cursor:pointer}#capabilities{line-height:1.6}footer{font-size:.85rem;color:#526477}button:focus-visible{outline:3px solid #c45c10;outline-offset:3px}
+</style></head><body><main><h1>Pashto ↔ English</h1><p class="muted">Tap the language being spoken. The other language should play aloud. Experimental prototype.</p>
+<section class="panel"><div class="choices"><button id="en" class="english">🎙 English<small>Speak English</small></button><button id="ps" class="pashto" lang="ps" dir="rtl">🎙 پښتو<small>Speak Pashto</small></button></div><p id="status" role="status" aria-live="polite">Checking this phone’s speech capabilities…</p></section>
+<section class="panel"><p class="muted">Translation</p><div id="result" aria-live="polite">Nothing translated yet.</div><button id="replay" disabled>▶ Replay translation</button><details><summary>Show original speech</summary><p id="original"></p></details></section>
+<details class="panel"><summary>Compatibility and privacy</summary><p id="capabilities"></p><p>Speech recognition may use your browser provider’s online service. Translation uses the public MyMemory service, which receives recognized text. Do not use this prototype for confidential, medical, legal, or emergency conversations. Pashto recognition and Pashto voice playback are not guaranteed by browsers.</p></details>
+<footer>Free experimental prototype. Translation and pronunciation require evaluation by fluent Pashto speakers. No conversation history is stored by this website.</footer></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+let active=null,lastSpeech=null;
+const setStatus=s=>{$('status').textContent=s};
+const voices=()=>window.speechSynthesis?.getVoices()||[];
+const voiceFor=lang=>voices().find(v=>v.lang.toLowerCase().startsWith(lang));
+function capabilityReport(){
+ const recognition=!!Recognition, synthesis=!!window.speechSynthesis, pashto=!!voiceFor('ps');
+ $('capabilities').textContent='Speech recognition: '+(recognition?'browser available':'unavailable')+'. Pashto voice installed: '+(pashto?'yes':'no')+'. English voice installed: '+(!!voiceFor('en')?'yes':'no')+'. Recognition language availability cannot be reliably detected until tested.';
+ $('en').disabled=!recognition;$('ps').disabled=!recognition;
+ if(!recognition)setStatus('This browser does not provide speech recognition. Try Chrome on Android or another supported browser.');
+ else if(!pashto)setStatus('English input can be tested. This phone has no detectable Pashto speaking voice, so English-to-Pashto audio may not work.');
+ else setStatus('Ready. Tap a microphone.');
+}
+function speak(text,lang){
+ if(!window.speechSynthesis){setStatus('Speech playback is unavailable.');return}
+ const voice=voiceFor(lang);
+ if(lang==='ps'&&!voice){setStatus('Translation shown, but no Pashto voice is installed on this device.');return}
+ window.speechSynthesis.cancel();
+ const utterance=new SpeechSynthesisUtterance(text);utterance.lang=lang;utterance.rate=.9;if(voice)utterance.voice=voice;
+ utterance.onerror=()=>setStatus('Audio playback failed.');
+ window.speechSynthesis.speak(utterance);
+}
+async function translate(text,source,target){
+ const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
+ const response=await fetch(url);if(!response.ok)throw Error('Translation service unavailable ('+response.status+').');
+ const data=await response.json();if(data.responseStatus!==200||!data.responseData?.translatedText)throw Error('Translation failed or daily free quota reached.');
+ return data.responseData.translatedText;
+}
+function start(lang){
+ if(!Recognition)return;
+ if(active){active.stop();active=null}
+ window.speechSynthesis?.cancel();
+ const rec=new Recognition();active=rec;rec.lang=lang==='ps'?'ps-AF':'en-US';rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
+ setStatus(lang==='ps'?'Listening for Pashto…':'Listening for English…');
+ rec.onresult=async e=>{
+  const heard=e.results[0][0].transcript;const target=lang==='ps'?'en':'ps';
+  $('original').textContent=heard;setStatus('Translating…');
+  try{const output=await translate(heard,lang,target);$('result').textContent=output;$('result').lang=target;lastSpeech={text:output,lang:target};$('replay').disabled=false;setStatus('Translation ready.');speak(output,target)}
+  catch(err){setStatus(err.message);$('result').textContent='Translation unavailable.'}
+ };
+ rec.onerror=e=>setStatus('Recognition error: '+e.error+'. This browser may not support spoken '+(lang==='ps'?'Pashto.':'English.'));
+ rec.onend=()=>{if(active===rec)active=null};
+ try{rec.start()}catch(err){setStatus('Microphone could not start: '+err.message)}
+}
+$('en').onclick=()=>start('en');$('ps').onclick=()=>start('ps');
+$('replay').onclick=()=>{if(lastSpeech)speak(lastSpeech.text,lastSpeech.lang)};
+if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=capabilityReport;
+capabilityReport();
+</script></body></html>
