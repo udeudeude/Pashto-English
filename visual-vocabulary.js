@@ -80,6 +80,7 @@ const pictureHeading=document.createElement('div');pictureHeading.className='pic
 const pictureStack=document.createElement('div');pictureStack.className='picture-stack';
 const sourcePicker=document.createElement('select');sourcePicker.setAttribute('aria-label','Picture source');sourcePicker.style.cssText='width:100%;font:inherit;font-size:.75rem;margin-bottom:10px';
 for(const [value,label] of [['iconoir','Iconoir + emoji'],['arasaac','ARASAAC + emoji'],['emoji','Emoji only']]){const option=document.createElement('option');option.value=value;option.textContent=label;sourcePicker.append(option)}
+sourcePicker.value='arasaac';
 sourcePicker.onchange=()=>renderPictures();
 pictureColumn.append(pictureHeading,sourcePicker,pictureStack);
 const contentColumn=document.createElement('div');contentColumn.className='content-column';
@@ -103,12 +104,19 @@ main.visual-layout{max-width:850px;display:grid;grid-template-columns:minmax(92p
 `;
 document.head.append(css);
 function tokens(text){return [...text.toLowerCase().matchAll(/[a-z]+(?:'[a-z]+)?/g)].map(m=>m[0])}
+const ignored=new Set('i me my mine you your he she it we they the a an to of in on at for from with by and or but is are was were be been being have has had do does did need needs needed can could would should will this that these those there here as if then than into onto about today tomorrow before after very just please'.split(' '));
+const irregular={cashews:'cashew',shelves:'shelf',knives:'knife',feet:'foot',teeth:'tooth',children:'child',men:'man',women:'woman'};
+const fallbackEmoji={ladder:'🪜',cashew:'🥜',jar:'🫙',shelf:'🗄️',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
 function visualMatches(){
  const english=englishResult.lang==='en'?englishResult.textContent:original.textContent;
  const result=[];
  for(const token of tokens(english)){
   const item=words.find(entry=>entry.forms.includes(token));
   if(item)result.push(item);
+  else if(!ignored.has(token)&&token.length>2){
+   const base=irregular[token]||(token.endsWith('ies')?token.slice(0,-3)+'y':token.endsWith('s')&&!token.endsWith('ss')?token.slice(0,-1):token);
+   result.push({label:base,emoji:fallbackEmoji[base]||'🔎',icon:base,unknown:true});
+  }
  }
  return result.slice(0,40);
 }
@@ -140,7 +148,8 @@ function renderPictures(){
   if(sourcePicker.value==='emoji')card.append(emojiElement(item.emoji));
   else if(sourcePicker.value==='arasaac'){
    const placeholder=emojiElement(item.emoji);card.append(placeholder);arasaacImage(item,placeholder);
-  }else card.append(iconElement(item));
+  }else if(item.unknown){const placeholder=emojiElement(item.emoji);card.append(placeholder);arasaacImage(item,placeholder)}
+  else card.append(iconElement(item));
   const label=document.createElement('span');label.className='word';label.textContent=item.label;
   card.append(label);pictureStack.append(card);
  }
