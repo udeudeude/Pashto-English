@@ -16,7 +16,7 @@ The left picture column displays concepts in the order of their **English** occu
 - `visual-vocabulary.js` creates the picture column. It is a limited English lexicon, not a full parser.
 - `stability.js` provides visible reject/alternatives buttons and optional swipe/hold gestures. `stability.css` contains its styles. It must load independently of any remote speech-model library.
 - `pashto-recognition.js` experimentally loads Whisper on demand. Accuracy and runtime on phones **remain unverified**.
-- Pashto speech synthesis: **experimental self-hosted eSpeak NG build** in `vendor/pashto-voice/` on development pull request #2. Voice output and browser compatibility are unverified until checks pass and fluent speakers review pronunciation.
+- Pashto speech synthesis: **experimental self-hosted eSpeak NG build** in `vendor/pashto-voice/` merged in pull request #2 and deployed from `main`. **Automated** mobile-sized WebKit/Chromium and Node waveform checks passed. Physical phone testing, speaker intelligibility evaluation, and translation quality remain unverified.
 - The public MyMemory text translation endpoint has usage limits and unreliable outputs. It must not be represented as free unlimited reliable translation.
 - Earlier unused files (`touch-controls.js`, `bilingual-interface.js`, `picture-corrections.js`, `noun-icons.js`) are **legacy**. Do not reactivate them or introduce overlapping control systems.
 

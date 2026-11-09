@@ -4,11 +4,11 @@ Updated: 2026-11-09
 
 ## Branch and review state
 
-Development branch: `feature/pashto-browser-voice`
+Most recent voice development branch: `feature/pashto-browser-voice` (merged into `main`)
 
-Open pull request: https://github.com/udeudeude/Pashto-English/pull/2
+Merged pull request: https://github.com/udeudeude/Pashto-English/pull/2
 
-Production branch: `main`, most recent merged stabilization pull request #1.
+Production branch: `main`, voice integration merged from pull request #2 on 2026-11-09.
 
 Do **not** assume the code in pull request #2 is deployed to the website until its checks pass and the pull request merges.
 
@@ -51,3 +51,7 @@ The original Spellophone 0.2.1 fails due to missing ps dictionary (its eSpeak NG
 ## Bundled voice integration checkpoint
 
 A newer eSpeak NG source build produced a **non-silent 2.1-second Pashto recording** in the GitHub Actions runner. The compiled engine and dictionaries were committed by the build action to `vendor/pashto-voice/` on pull request #2. The app now loads these local compiled assets instead of the older incompatible published package. Automated WebKit, Chromium, and Node tests are being expanded to verify the bundled output, and fluent-speaker pronunciation review is still missing. Do not claim end-to-end readiness from an audio waveform alone.
+
+## Browser validation and deployment checkpoint
+
+PR #2 merged in commit `996cb25cd7b8df67ecfb724356ad2803e90dcb13`. Its checks **passed**: 10 simulated mobile WebKit/Chromium browser tests including in-browser Pashto playback, and independent non-silent waveform synthesis from the locally bundled engine. GitHub Pages deployment from main may still be propagating. Physical iPhone Safari, Android Chrome, and fluent Afghan Pashto speaker tests are required before claiming normal-use readiness. The translated text service remains a separate accuracy and quota risk. Next developer should inspect the live site first, then conduct physical-device testing and improve recognition/translation, not repeat the eSpeak bundle work.

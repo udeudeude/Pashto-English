@@ -8,7 +8,7 @@ This note captures technical leads, **not verified end-to-end components**. Free
 - Pashto speech recognition: experimental `onnx-community/whisper-tiny` using Transformers.js, loaded **only on demand**. No dialect-specific benchmark or real-phone latency measurement yet.
 - Translation: MyMemory free-tier endpoint. Rate limits and occasional invalid responses are known.
 - English output: browser `SpeechSynthesis`.
-- Pashto output: **not implemented** unless the device coincidentally offers a compatible voice; a fully spoken translation is therefore **not achieved**.
+- Pashto output: **experimental** bundled modern eSpeak NG WebAssembly, hosted under `vendor/pashto-voice/` on GitHub Pages and loaded on demand. The bundled engine produced a real non-silent Pashto waveform and passed automated WebKit/Chromium playback tests on 2026-11-09; pronunciation and real-phone compatibility remain unverified.
 
 ## Most promising free Pashto speech output
 
@@ -28,3 +28,7 @@ This note captures technical leads, **not verified end-to-end components**. Free
 ## Reliability gates
 
 The two independent speech directions need separate scores for recognition accuracy, translation accuracy, and synthesis intelligibility. Use human-reviewed reference utterances, not agreement between automated translation services. Reject unsupported-language and bracketed placeholders such as `[Spanish]`. Never tell users a translation is ready for listening unless the audio can actually be played.
+
+## Confirmed 2026-11-09 implementation
+
+The published Spellophone 0.2.1 package uses eSpeak NG 1.52.0 and **does not include Pashto**. We found this through an explicitly failing test. Rather than falling back to Persian, we compiled Spellophone from pinned source against eSpeak NG 1.53-development commit `688cb60368d6e0998f3632af8d1c3c2ad4191fc2`. This produced four Pashto variants and a non-silent test recording. The matching compiled WebAssembly, JavaScript glue, manifest, `en_dict.gz`, `ps_dict.gz`, and core data were committed to `vendor/pashto-voice/` with license and checksums. PR #2 automated tests passed, including actual synthesis in both browser engines. Human evaluation is still required, and earlier eSpeak NG Pashto numerical pronunciation bugs warrant particular attention.
