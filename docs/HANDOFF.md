@@ -47,3 +47,7 @@ The app must remain free, bilingual in all fixed interface copy, phone-first, an
 ## November 9 audio synthesis breakthrough
 
 The original Spellophone 0.2.1 fails due to missing ps dictionary (its eSpeak NG version was 1.52.0). A new continuous-integration job **successfully compiled eSpeak NG 1.53 development version** pinned to `688cb603...`, generating a non-silent WAV (46,194 samples, 22,050 Hz, peak 28,953) and listing four Pashto voices. The follow-up build packages matching JavaScript, WebAssembly and language dictionaries into `vendor/pashto-voice/`. Once the vendor-assets commit lands, verify browser tests and the local speech test. Human review still required.
+
+## Bundled voice integration checkpoint
+
+A newer eSpeak NG source build produced a **non-silent 2.1-second Pashto recording** in the GitHub Actions runner. The compiled engine and dictionaries were committed by the build action to `vendor/pashto-voice/` on pull request #2. The app now loads these local compiled assets instead of the older incompatible published package. Automated WebKit, Chromium, and Node tests are being expanded to verify the bundled output, and fluent-speaker pronunciation review is still missing. Do not claim end-to-end readiness from an audio waveform alone.

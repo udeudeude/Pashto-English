@@ -69,3 +69,11 @@ test('Pashto playback uses the local voice engine even without a system Pashto v
   });
   expect(spoken).toBe('سلام، تاسو څنګه یاست؟');
 });
+
+test('bundled Pashto voice synthesizes speech on a user tap', async ({page}) => {
+  test.setTimeout(120_000);
+  await page.locator('summary').last().click();
+  await expect(page.locator('#test-pashto-voice')).toBeVisible();
+  await page.locator('#test-pashto-voice').click();
+  await expect(page.locator('#status')).toContainText('Playing Pashto translation', {timeout:90_000});
+});

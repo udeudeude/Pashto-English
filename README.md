@@ -18,7 +18,7 @@ GitHub Pages deployment from **main** is already configured. New topic-branch co
 
 - Uses browser SpeechRecognition (or webkitSpeechRecognition). Language support is browser/provider-dependent; `ps-AF` is requested but Pashto recognition is **not verified**.
 - Uses the public MyMemory text translation endpoint. This is free within its service limits, **not unlimited**, and Pashto translation quality is unverified.
-- Uses browser SpeechSynthesis for spoken output. A usable Pashto voice is **not generally installed** on phones; the app explicitly reports when one is missing.
+- English audio uses browser speech synthesis. A new **experimental locally bundled Pashto speech engine** has been added on the development branch; the current production version must not be described as working until pull request #2 passes browser/device tests and is merged. The Pashto voice is GPL-3.0-or-later and requires fluent-speaker intelligibility evaluation.
 - English recognition and speech may work on supported browsers. iPhone Safari and Android Chrome need actual device tests.
 - Speech and recognized text may be sent to browser and translation providers. No transcripts are intentionally persisted by this site.
 - **Do not use for confidential, legal, medical, emergency, or high-stakes conversations.**
