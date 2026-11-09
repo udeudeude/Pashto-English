@@ -7,12 +7,12 @@ Updated: 2026-11-09
 - Production repository: https://github.com/udeudeude/Pashto-English
 - Published site: https://udeudeude.github.io/Pashto-English/
 - Production branch: `main`
-- **Current development branch:** `fix/shared-translation-and-self-test`
-- **Current pull request:** https://github.com/udeudeude/Pashto-English/pull/3
+- **Last completed development branch:** `fix/shared-translation-and-self-test` (merged into `main`)
+- **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/3
 
-Future ChatGPT Work and Chat sessions should check the latest branch, open pull requests, test results and this file **before doing new work**. Do not repeat implemented features. Review test results and merge only green, reviewed changes.
+Future ChatGPT Work and Chat sessions should check the latest branch, open pull requests, test results and this file **before doing new work**. Do not repeat implemented features. PR #3 was merged after green checks; review newly opened PRs before starting work.
 
-## Work preserved on current pull request #3
+## Work completed and merged in pull request #3
 
 1. Unified English and Pashto recognized text, translation presentation, status handling, and Replay under `window.pashtoApp` in `index.html`. Previously, the Pashto recorder separately overwrote the Replay handler.
 2. Added a bilingual **Try without another speaker** practice panel. The English-speaking teacher can test real English-to-Pashto and Pashto-to-English translation and synthesized output using four sample sentences without a microphone or Pashto partner. These are test phrases, **not verified translations**.
@@ -24,7 +24,7 @@ Future ChatGPT Work and Chat sessions should check the latest branch, open pull 
 8. Added regression tests for self-tests, replay safety, out-of-order responses, bilingual layout, and failure pictograms.
 9. Created a text-only word/character error-rate scorer for Pashto recognition, with unit tests; documented four public transcribed speech corpus candidates in `docs/PASHTO_RECOGNITION_EVALUATION.md`.
 
-**Automated tests:** GitHub Actions checks run on the pull request. The current branch may have new commits after the last green run; inspect the actual latest result before merging.
+**Verification:** At PR #3 head `2b340ac8…`, GitHub Actions passed **22 mobile browser tests** across Chromium and WebKit, **4 transcript-scoring unit tests**, and the bundled Pashto waveform synthesis test. Merged to main at commit `c4698665cd145612925af139b74571587619bc6f`. Real-device and native-speaker checks are still outstanding.
 
 ## Existing verified implementation on main (PR #1 and PR #2)
 
