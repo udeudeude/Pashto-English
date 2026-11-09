@@ -9,6 +9,7 @@
   let enginePromise=null;
   let audioContext=null;
   let playing=null;
+  let playVersion=0;
   const notify=(en,ps)=>{
     const text=en+' / '+ps;
     if(window.pashtoStatus) {
@@ -44,14 +45,17 @@
     return enginePromise;
   }
   function stop(){
+    ++playVersion;
     if(playing){
       try{playing.stop()}catch(e){}
       playing=null;
     }
   }
   async function speakPashto(text){
+    const version=++playVersion;
     if(!text || !/[\u0600-\u06ff]/u.test(text))throw Error('The text does not contain Pashto script.');
     const espeak=await loadEngine();
+    if(version!==playVersion)return {cancelled:true};
     unlock();
     if(!audioContext)throw Error('This browser cannot play generated sound.');
     // Produces signed, 16-bit, 22,050 Hz mono samples.
@@ -69,8 +73,10 @@
     }
     if(!nonzero)throw Error('The Pashto voice generated silence.');
     await audioContext.resume();
+    if(version!==playVersion)return {cancelled:true};
     if(audioContext.state!=='running')throw Error('Audio playback is blocked. Tap Replay to permit sound.');
-    stop();
+    // Stop the previous source without invalidating this newest request.
+    if(playing){try{playing.stop()}catch(e){}playing=null}
     const source=audioContext.createBufferSource();
     source.buffer=buffer;source.connect(audioContext.destination);
     playing=source;
