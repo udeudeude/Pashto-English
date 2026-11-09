@@ -9,7 +9,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: upstream-pashto-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-new-espeak:
@@ -17,21 +21,36 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/pashto-browser-voice
+      - name: Detect already packaged Pashto engine
+        id: present
+        run: |
+          if test -s vendor/pashto-voice/espeak-ng-data/ps_dict.gz && test -s vendor/pashto-voice/wasm/espeak-ng.wasm; then
+            echo "already=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "already=no" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.present.outputs.already != 'yes'
         with:
           node-version: 24
       - uses: pnpm/action-setup@v4
+        if: steps.present.outputs.already != 'yes'
         with:
           version: 12.4.1
       - uses: mymindstorm/setup-emsdk@v14
+        if: steps.present.outputs.already != 'yes'
         with:
           version: 6.0.12
       - name: Build browser speech engine with current Pashto support
+        if: steps.present.outputs.already != 'yes'
         shell: bash
         run: |
           set -euo pipefail
           git clone --depth 1 https://github.com/Spelling-Creator/spellophone.git /tmp/spellophone
           cd /tmp/spellophone
+          git checkout f6dc436c9cd2e9cc38b0f787f7c1235aa838d7e3
           pnpm install --frozen-lockfile
           git clone https://github.com/espeak-ng/espeak-ng.git vendor/espeak-ng
           git -C vendor/espeak-ng checkout 688cb60368d6e0998f3632af8d1c3c2ad4191fc2
@@ -55,13 +74,42 @@ jobs:
           NODE
           mkdir -p /tmp/pashto-artifacts/voice
           cp packages/spellophone/espeak-ng-data/ps_dict.gz /tmp/pashto-artifacts/voice/
+          cp packages/spellophone/espeak-ng-data/en_dict.gz /tmp/pashto-artifacts/voice/
           cp packages/spellophone/espeak-ng-data/core.bin.gz /tmp/pashto-artifacts/voice/
           cp packages/spellophone/espeak-ng-data/manifest.json /tmp/pashto-artifacts/voice/
           cp packages/spellophone/wasm/espeak-ng.wasm /tmp/pashto-artifacts/voice/
       - name: Upload experimental Pashto voice and required data
-        if: always()
+        if: always() && steps.present.outputs.already != 'yes'
         uses: actions/upload-artifact@v4
         with:
           name: upstream-pashto-experimental
           path: /tmp/pashto-artifacts/
           if-no-files-found: ignore
+
+      - name: Commit verified Pashto voice binaries to development branch
+        if: success() && steps.present.outputs.already != 'yes'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dest="vendor/pashto-voice"
+          mkdir -p "$dest/dist" "$dest/wasm" "$dest/espeak-ng-data"
+          cp /tmp/spellophone/packages/spellophone/dist/*.js "$dest/dist/"
+          cp /tmp/spellophone/packages/spellophone/wasm/espeak-ng.js "$dest/wasm/"
+          cp /tmp/spellophone/packages/spellophone/wasm/espeak-ng.wasm "$dest/wasm/"
+          cp /tmp/spellophone/packages/spellophone/espeak-ng-data/{manifest.json,core.bin.gz,en_dict.gz,ps_dict.gz} "$dest/espeak-ng-data/"
+          cp /tmp/spellophone/LICENSE "$dest/LICENSE"
+          printf '%s\n' \
+            'Experimental eSpeak NG Pashto voice: GPL-3.0-or-later' \
+            'Generated from https://github.com/Spelling-Creator/spellophone commit f6dc436c9cd2e9cc38b0f787f7c1235aa838d7e3' \
+            'With https://github.com/espeak-ng/espeak-ng commit 688cb60368d6e0998f3632af8d1c3c2ad4191fc2' \
+            'Compiled using emsdk 6.0.12, pnpm 12.4.1, Node 24.' \
+            'No fluent-speaker intelligibility validation yet.' \
+            > "$dest/SOURCE.txt"
+          (cd "$dest" && sha256sum wasm/espeak-ng.js wasm/espeak-ng.wasm espeak-ng-data/{manifest.json,core.bin.gz,en_dict.gz,ps_dict.gz} > SHA256SUMS)
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$dest"
+          if ! git diff --cached --quiet; then
+            git commit -m 'Vendor newly compiled Pashto speech engine with test-proven waveform'
+            git push origin HEAD:feature/pashto-browser-voice
+          fi

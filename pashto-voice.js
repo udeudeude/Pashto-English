@@ -5,7 +5,7 @@
  */
 (() => {
   'use strict';
-  const PACKAGE = 'https://cdn.jsdelivr.net/npm/@spelling-creator/spellophone@0.2.1';
+  const PACKAGE = new URL('./vendor/pashto-voice/',document.baseURI).href.replace(/\/$/,'');
   let enginePromise=null;
   let audioContext=null;
   let playing=null;
@@ -29,7 +29,7 @@
       notify('Downloading Pashto speech engine…','د پښتو غږیز سیستم ښکته کېږي…');
       const {createEspeak}=await import(PACKAGE+'/dist/browser.js');
       const espeak=await createEspeak({
-        cdn:'jsdelivr',
+        dataUrl:PACKAGE+'/espeak-ng-data/',
         languages:['ps'],
         wasmUrl:PACKAGE+'/wasm/espeak-ng.wasm'
       });

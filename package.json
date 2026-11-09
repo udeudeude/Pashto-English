@@ -9,7 +9,6 @@
     "test:voice": "node tests/pashto-voice.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.0",
-    "@spelling-creator/spellophone": "0.2.1"
+    "@playwright/test": "1.65.0"
   }
 }

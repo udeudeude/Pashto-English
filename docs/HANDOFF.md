@@ -43,3 +43,7 @@ Do **not** assume the code in pull request #2 is deployed to the website until i
 Refer to `AGENTS.md`, `docs/ACCEPTANCE_TESTS.md`, `docs/SPEECH_OPTIONS.md`, and `tests/mobile.spec.mjs`.
 
 The app must remain free, bilingual in all fixed interface copy, phone-first, and independently verifiable. Never record fabricated testing outcomes. Work on topic branches and make frequent recoverable commits.
+
+## November 9 audio synthesis breakthrough
+
+The original Spellophone 0.2.1 fails due to missing ps dictionary (its eSpeak NG version was 1.52.0). A new continuous-integration job **successfully compiled eSpeak NG 1.53 development version** pinned to `688cb603...`, generating a non-silent WAV (46,194 samples, 22,050 Hz, peak 28,953) and listing four Pashto voices. The follow-up build packages matching JavaScript, WebAssembly and language dictionaries into `vendor/pashto-voice/`. Once the vendor-assets commit lands, verify browser tests and the local speech test. Human review still required.

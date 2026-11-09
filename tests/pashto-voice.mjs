@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createEspeak, encodeWav } from '@spelling-creator/spellophone/node';
+import { createEspeak, encodeWav } from '../vendor/pashto-voice/dist/node.js';
 
 const espeak=await createEspeak({languages:['ps']});
 const available=espeak.listVoices();
