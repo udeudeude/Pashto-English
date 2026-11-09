@@ -78,7 +78,10 @@ main.classList.add('visual-layout');
 const pictureColumn=document.createElement('aside');pictureColumn.id='picture-column';pictureColumn.setAttribute('aria-label','Pictures in spoken word order');
 const pictureHeading=document.createElement('div');pictureHeading.className='picture-heading';pictureHeading.textContent='Pictures';
 const pictureStack=document.createElement('div');pictureStack.className='picture-stack';
-pictureColumn.append(pictureHeading,pictureStack);
+const sourcePicker=document.createElement('select');sourcePicker.setAttribute('aria-label','Picture source');sourcePicker.style.cssText='width:100%;font:inherit;font-size:.75rem;margin-bottom:10px';
+for(const [value,label] of [['iconoir','Iconoir + emoji'],['arasaac','ARASAAC + emoji'],['emoji','Emoji only']]){const option=document.createElement('option');option.value=value;option.textContent=label;sourcePicker.append(option)}
+sourcePicker.onchange=()=>renderPictures();
+pictureColumn.append(pictureHeading,sourcePicker,pictureStack);
 const contentColumn=document.createElement('div');contentColumn.className='content-column';
 while(main.firstChild)contentColumn.append(main.firstChild);
 main.append(pictureColumn,contentColumn);
@@ -109,6 +112,18 @@ function visualMatches(){
  }
  return result.slice(0,40);
 }
+async function arasaacImage(item,placeholder){
+ try{
+  const response=await fetch('https://api.arasaac.org/v1/pictograms/en/search/'+encodeURIComponent(item.label));
+  if(!response.ok)throw Error('not found');
+  const results=await response.json();
+  const exact=results.find(x=>(x.keywords||[]).some(k=>k.keyword?.toLowerCase()===item.label));
+  if(!exact?._id)throw Error('no exact match');
+  const img=document.createElement('img');img.alt='';img.loading='lazy';img.src='https://static.arasaac.org/pictograms/'+exact._id+'/'+exact._id+'_300.png';
+  img.onerror=()=>img.replaceWith(emojiElement(item.emoji));
+  if(placeholder.isConnected)placeholder.replaceWith(img);
+ }catch(e){/* Keep the emoji fallback if ARASAAC is unavailable. */}
+}
 function iconElement(item){
  const img=document.createElement('img');
  img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';
@@ -122,7 +137,10 @@ function renderPictures(){
  const matches=visualMatches();
  for(const item of matches){
   const card=document.createElement('div');card.className='picture-card';
-  card.append(iconElement(item));
+  if(sourcePicker.value==='emoji')card.append(emojiElement(item.emoji));
+  else if(sourcePicker.value==='arasaac'){
+   const placeholder=emojiElement(item.emoji);card.append(placeholder);arasaacImage(item,placeholder);
+  }else card.append(iconElement(item));
   const label=document.createElement('span');label.className='word';label.textContent=item.label;
   card.append(label);pictureStack.append(card);
  }
@@ -134,3 +152,5 @@ function renderPictures(){
 new MutationObserver(renderPictures).observe(englishResult,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['lang']});
 new MutationObserver(renderPictures).observe(original,{childList:true,characterData:true,subtree:true});
 renderPictures();
+
+const credits=document.createElement('p');credits.className='muted';credits.style.cssText='font-size:.68rem;line-height:1.35;margin-top:12px';credits.textContent='Iconoir: MIT license. ARASAAC pictograms: Government of Aragon / Sergio Palao, CC BY-NC-SA 4.0; used here for noncommercial educational purposes. Emoji: device fonts. ARASAAC matching is experimental.';pictureColumn.append(credits);
