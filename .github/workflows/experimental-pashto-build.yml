@@ -1,0 +1,67 @@
+name: Experimental upstream Pashto speech build
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/experimental-pashto-build.yml'
+      - 'pashto-voice.js'
+      - 'tests/pashto-voice.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-new-espeak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 6.0.12
+      - name: Build browser speech engine with current Pashto support
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/Spelling-Creator/spellophone.git /tmp/spellophone
+          cd /tmp/spellophone
+          pnpm install --frozen-lockfile
+          git clone https://github.com/espeak-ng/espeak-ng.git vendor/espeak-ng
+          git -C vendor/espeak-ng checkout 688cb60368d6e0998f3632af8d1c3c2ad4191fc2
+          pnpm --filter @spelling-creator/spellophone build:data
+          pnpm --filter @spelling-creator/spellophone build:wasm
+          pnpm --filter @spelling-creator/spellophone build:ts
+          test -f packages/spellophone/espeak-ng-data/ps_dict.gz
+          node --input-type=module <<'NODE'
+          import {createEspeak,encodeWav} from '/tmp/spellophone/packages/spellophone/dist/node.js';
+          import {writeFile,mkdir} from 'node:fs/promises';
+          const engine=await createEspeak({languages:['ps']});
+          const voices=engine.listVoices();
+          if(!voices.some(v=>v.languages?.some(x=>x.name==='ps'||x.name?.startsWith('ps-'))))throw Error('Pashto voice missing');
+          engine.setVoice('ps');
+          const result=engine.synthesize('سلام، تاسو څنګه یاست؟');
+          const peak=result.samples.reduce((m,x)=>Math.max(m,Math.abs(x)),0);
+          if(!result.samples.length||peak<30)throw Error('No non-silent audio generated');
+          await mkdir('/tmp/pashto-artifacts',{recursive:true});
+          await writeFile('/tmp/pashto-artifacts/pashto-voice.wav',encodeWav(result.samples,result.sampleRate));
+          console.log(JSON.stringify({samples:result.samples.length,peak,sampleRate:result.sampleRate,voices:voices.filter(v=>v.languages?.some(x=>x.name==='ps')).map(v=>v.name)}));
+          NODE
+          mkdir -p /tmp/pashto-artifacts/voice
+          cp packages/spellophone/espeak-ng-data/ps_dict.gz /tmp/pashto-artifacts/voice/
+          cp packages/spellophone/espeak-ng-data/core.bin.gz /tmp/pashto-artifacts/voice/
+          cp packages/spellophone/espeak-ng-data/manifest.json /tmp/pashto-artifacts/voice/
+          cp packages/spellophone/wasm/espeak-ng.wasm /tmp/pashto-artifacts/voice/
+      - name: Upload experimental Pashto voice and required data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-pashto-experimental
+          path: /tmp/pashto-artifacts/
+          if-no-files-found: ignore
