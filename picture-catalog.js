@@ -15,7 +15,7 @@
    bottle:['mdi:bottle-wine'],glass:['mdi:glass-mug-variant'],
    ladder:['mdi:ladder'],stairs:['mdi:stairs'],
    almond:['game-icons:almond'],peanut:['game-icons:peanut'],
-   top:['mdi:arrow-up-thick']
+   // 'top' has many context-dependent senses. No unverified default picture.
  };
  // Search alternatives are explicit *queries*, not claims of equivalent meaning.
  // Never show peanut or books as a standalone picture of cashew or shelf.
