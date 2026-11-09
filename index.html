@@ -2,10 +2,11 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14283c"><title>Pashto ↔ English / پښتو ↔ انګلیسي</title><link rel="stylesheet" href="./stability.css?v=1">
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#16283b;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:22px 16px 50px}h1{font-size:1.5rem;margin:0 0 8px}p{line-height:1.45}.muted{color:#536578}.panel{background:white;border:1px solid #dce3e9;border-radius:20px;padding:20px;margin:18px 0}button{font:inherit;cursor:pointer;border:0;border-radius:18px;padding:18px;min-height:76px}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.english{background:#dbe9ff;color:#173f85}.pashto{background:#d8f3e2;color:#125b35}.choices button{font-size:1.35rem;font-weight:750}.choices small{display:block;font-size:.78rem;margin-top:6px}#status{font-weight:650;min-height:3em}#result{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.3rem;min-height:3em}#original{white-space:pre-wrap;overflow-wrap:anywhere}#replay{width:100%;background:#1c3853;color:white}#replay:disabled{background:#9aa6b0}details{margin-top:18px}summary{cursor:pointer}#capabilities{line-height:1.6}footer{font-size:.85rem;color:#526477}button:focus-visible{outline:3px solid #c45c10;outline-offset:3px}
+#test-pashto-voice{width:100%;min-height:54px;background:#23537e;color:white;margin-top:12px}
 </style></head><body><main><h1>Pashto ↔ English / پښتو ↔ انګلیسي</h1><p class="muted">Choose the spoken language. Experimental voice translator. / د خبرې ژبه وټاکئ. دا ازمایښتي غږیز ژباړن دی.</p>
 <section class="panel"><div class="choices"><button id="en" class="english">🎙 English<small>Speak English / په انګلیسي خبرې وکړئ</small></button><button id="ps" class="pashto" lang="ps" dir="rtl">🎙 پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small></button></div><p id="status" role="status" aria-live="polite">Checking speech support… / د غږ ملاتړ کتل کېږي…</p></section>
 <section class="panel"><p class="muted">Translation / ژباړه</p><div id="result" aria-live="polite">Nothing translated yet. / لا ژباړه نشته.</div><button id="replay" disabled>▶ Replay / بیا واورئ</button><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
-<details class="panel"><summary>Compatibility and privacy / سازګاري او محرمیت</summary><p id="capabilities"></p><p>Speech recognition and translation may use online providers. Avoid confidential or urgent conversations. Pashto voice output is not yet working on most phones. / د غږ پېژندنه او ژباړه ښايي له انلاین خدمتونو کار واخلي. په محرمو او بېړنیو خبرو کې دا مه کاروئ. د پښتو غږ لا په ډېرو تلیفونونو کې کار نه کوي.</p></details>
+<details class="panel"><summary>Compatibility and privacy / سازګاري او محرمیت</summary><p id="capabilities"></p><p>Speech recognition and translation may use online providers. Avoid confidential or urgent conversations. Pashto voice output is experimental. / د غږ پېژندنه او ژباړه ښايي له انلاین خدمتونو کار واخلي. په محرمو او بېړنیو خبرو کې دا مه کاروئ. د پښتو غږ لا په ډېرو تلیفونونو کې کار نه کوي.</p><button type="button" id="test-pashto-voice">▶ Test Pashto voice / د پښتو غږ وازمویئ</button></details>
 <footer>Free experimental prototype. Pashto speakers must verify accuracy. The website does not intentionally save conversations. / وړیا ازمایښتي بڼه. د پښتو ویونکي باید د ژباړې سموالی وڅېړي. دا وېبپاڼه خبرې په قصدي ډول نه ساتي.</footer></main>
 <script>
 'use strict';
@@ -38,13 +39,18 @@ const voices=()=>window.speechSynthesis?.getVoices()||[];
 const voiceFor=lang=>voices().find(v=>v.lang.toLowerCase().startsWith(lang));
 function capabilityReport(){
  const recognition=!!Recognition, synthesis=!!window.speechSynthesis, pashto=!!voiceFor('ps');
- $('capabilities').textContent='Speech recognition: '+(recognition?'browser available':'unavailable')+'. Pashto voice installed: '+(pashto?'yes':'no')+'. English voice installed: '+(!!voiceFor('en')?'yes':'no')+'. Recognition language availability cannot be reliably detected until tested.';
+ $('capabilities').textContent='Speech recognition / غږ پېژندنه: '+(recognition?'browser available / شته':'unavailable / نشته')+'. Free Pashto voice / وړیا پښتو غږ: experimental, first-use download / ازمایښتي، لومړی ښکته کېږي. English voice / انګلیسي غږ: '+(!!voiceFor('en')?'yes / هو':'no / نه')+'. Pashto recognition requires real-world testing / د پښتو غږ پېژندنه باید وازمویل شي.';
  $('en').disabled=!recognition;$('ps').disabled=!recognition;
  if(!recognition)setStatus('This browser does not provide speech recognition. Try Chrome on Android or another supported browser.');
- else if(!pashto)setStatus('English input can be tested. This phone has no detectable Pashto speaking voice, so English-to-Pashto audio may not work.');
+ else if(!pashto)setStatus('Tap Test Pashto Voice to test free offline-capable speech after download. Pronunciation is experimental.');
  else setStatus('Ready. Tap a microphone.');
 }
 function speak(text,lang){
+ if(lang==='ps'){
+  if(!window.pashtoVoice){setStatus('Pashto speech engine has not loaded. Please try Replay.');return}
+  window.pashtoVoice.speak(text).catch(()=>{});
+  return;
+ }
  if(!window.speechSynthesis){setStatus('Speech playback is unavailable.');return}
  const voice=voiceFor(lang);
  if(lang==='ps'&&!voice){setStatus('Translation shown, but no Pashto voice is installed on this device.');return}
@@ -63,6 +69,7 @@ async function translate(text,source,target){
  return candidate;
 }
 function start(lang){
+ if(lang==='en')window.pashtoVoice?.unlock();
  if(!Recognition)return;
  if(active){active.stop();active=null}
  window.speechSynthesis?.cancel();
@@ -80,7 +87,7 @@ function start(lang){
  try{rec.start()}catch(err){setStatus('Microphone could not start: '+err.message)}
 }
 $('en').onclick=()=>start('en');$('ps').onclick=()=>start('ps');
-$('replay').onclick=()=>{if(lastSpeech)speak(lastSpeech.text,lastSpeech.lang)};
+$('replay').onclick=()=>{if(lastSpeech){if(lastSpeech.lang==='ps')window.pashtoVoice?.unlock();speak(lastSpeech.text,lastSpeech.lang)}};
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=capabilityReport;
 capabilityReport();
-</script><script type="module" src="./visual-vocabulary.js?v=9"></script><script defer src="./stability.js?v=1"></script><script type="module" src="./pashto-recognition.js?v=2"></script></body></html>
+</script><script type="module" src="./visual-vocabulary.js?v=9"></script><script defer src="./stability.js?v=1"></script><script defer src="./pashto-voice.js?v=1"></script><script type="module" src="./pashto-recognition.js?v=2"></script></body></html>
