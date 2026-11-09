@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "check": "node --check stability.js && node --check visual-vocabulary.js && node --check pashto-recognition.js && node --check tests/mobile.spec.mjs"
+    "check": "node --check stability.js && node --check visual-vocabulary.js && node --check pashto-recognition.js && node --check tests/mobile.spec.mjs",
+    "test:voice": "node tests/pashto-voice.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.0"
+    "@playwright/test": "1.65.0",
+    "@spelling-creator/spellophone": "0.2.1"
   }
 }
