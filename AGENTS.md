@@ -29,7 +29,7 @@ The left picture column displays concepts in the order of their **English** occu
 5. For visual defects, reproduce on a phone-size viewport and inspect console errors, loaded assets, touch behavior, and screenshot. Do not repeatedly claim untested fixes work.
 6. Do not make remote network/model imports a prerequisite for rendering the core interface.
 7. Use and credit existing appropriately licensed icons and pictograms. **Never generate or modify images** unless the user explicitly asks for image creation or editing.
-8. No secrets, paid services, private recordings, or uploaded identifying conversation data in the repository.
+8. No secrets, paid services, private recordings, or uploaded identifying conversation data in the repository. Public speech corpora may prohibit redistribution even if labeled CC0.
 9. Avoid unnecessary initialisms or abbreviations in user-facing labels.
 10. Keep test cases for every corrected regression, especially touch-selection, missing controls, missing Pashto text, and false-success translations.
 
@@ -40,8 +40,8 @@ Treat transcription, translation, and output voice as **separate validated stage
 ## Next priorities
 
 1. Verify picture controls on a *physical* iPhone Safari and Android Chrome, not just WebKit/Chromium automation.
-2. Bring working, audible Pashto speech synthesis to the phone. Investigate the Pashto voice in eSpeak NG 1.53 and browser/WebAssembly ports, plus licensed neural alternatives, and verify quality with speakers.
-3. Measure Pashto speech recognition using real recorded Afghan speech and on-device memory/latency.
+2. Verify the existing bundled Pashto speech engine on a physical iPhone and Android phone and evaluate pronunciation with fluent speakers; do not repeat the completed WebAssembly port.
+3. Measure Pashto speech recognition with legitimately acquired transcribed Afghan speech using `docs/PASHTO_RECOGNITION_EVALUATION.md` and `scripts/score-transcripts.mjs`; record phone memory, download size and latency.
 4. Evaluate translation accuracy, rate limits, privacy, and a sustainable free implementation.
 5. Improve semantic pictogram choice and sentence-level alignment, respecting source licenses.
 6. Expand the bilingual translation review process.
