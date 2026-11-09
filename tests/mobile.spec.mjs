@@ -56,3 +56,16 @@ test('incorrect translation placeholder is not treated as successful translation
   });
   expect(result).toContain('Invalid translation placeholder');
 });
+
+test('Pashto playback uses the local voice engine even without a system Pashto voice', async ({ page }) => {
+  await expect(page.locator('#test-pashto-voice')).toBeAttached();
+  await expect.poll(() => page.evaluate(() => typeof window.pashtoVoice?.speak)).toBe('function');
+  const spoken=await page.evaluate(async () => {
+    let received=null;
+    window.pashtoVoice.speak=async text => { received=text; };
+    speak('سلام، تاسو څنګه یاست؟','ps');
+    await Promise.resolve();
+    return received;
+  });
+  expect(spoken).toBe('سلام، تاسو څنګه یاست؟');
+});
