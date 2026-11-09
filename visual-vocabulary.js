@@ -72,95 +72,109 @@ const words = [
  ['one','1️⃣','number-1-square','one'],['two','2️⃣','number-2-square','two'],
  ['three','3️⃣','number-3-square','three']
 ].map(([label,emoji,icon,forms])=>({label,emoji,icon,forms:forms.split(' ')}));
-const englishResult=document.getElementById('result'),original=document.getElementById('original');
+
+const result=document.getElementById('result');
+const original=document.getElementById('original');
 const main=document.querySelector('main');
 main.classList.add('visual-layout');
-const pictureColumn=document.createElement('aside');pictureColumn.id='picture-column';pictureColumn.setAttribute('aria-label','Pictures in spoken word order');
-const pictureHeading=document.createElement('div');pictureHeading.className='picture-heading';pictureHeading.textContent='Pictures';
-const pictureStack=document.createElement('div');pictureStack.className='picture-stack';
-const sourcePicker=document.createElement('select');sourcePicker.setAttribute('aria-label','Picture source');sourcePicker.style.cssText='width:100%;font:inherit;font-size:.75rem;margin-bottom:10px';
-for(const [value,label] of [['iconoir','Iconoir + emoji'],['arasaac','ARASAAC + emoji'],['emoji','Emoji only']]){const option=document.createElement('option');option.value=value;option.textContent=label;sourcePicker.append(option)}
-sourcePicker.value='arasaac';
-sourcePicker.onchange=()=>renderPictures();
-pictureColumn.append(pictureHeading,sourcePicker,pictureStack);
-const demo=document.createElement('button');demo.type='button';demo.textContent='Test pictures';demo.style.cssText='font-size:.75rem;min-height:38px;width:100%;padding:6px;margin-bottom:8px;background:#e9eff8;color:#173f85';demo.onclick=()=>{original.textContent='I need a ladder to reach the cashews in the jar on the shelf';englishResult.lang='ps';renderPictures()};pictureColumn.insertBefore(demo,pictureStack);
-const contentColumn=document.createElement('div');contentColumn.className='content-column';
-while(main.firstChild)contentColumn.append(main.firstChild);
-main.append(pictureColumn,contentColumn);
-const css=document.createElement('style');
-css.textContent=`
-main.visual-layout{max-width:850px;display:grid;grid-template-columns:minmax(92px,27%) minmax(0,1fr);gap:12px;align-items:start;padding:12px 10px 50px}
-.picture-column{background:#fff;border:1px solid #dce3e9;border-radius:18px;min-height:70vh;padding:10px 6px;position:sticky;top:8px;max-height:calc(100dvh - 16px);overflow-y:auto}
-.picture-heading{text-align:center;color:#536578;font-size:.85rem;font-weight:700;margin:4px 0 10px}
-.picture-stack{display:flex;flex-direction:column;gap:12px;align-items:stretch}
-.picture-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid #e1e6ec;border-radius:12px;padding:9px 3px;background:#f7f9fc;min-height:88px}
-.picture-card .emoji{font-size:2.5rem;line-height:1.2}
-.picture-card img{width:54px;height:54px;object-fit:contain}
-.picture-card .word{font-size:.78rem;text-align:center;overflow-wrap:anywhere}
-.picture-card .source{font-size:.58rem;color:#667788}
+const aside=document.createElement('aside');
+aside.id='picture-column';
+aside.setAttribute('aria-label','Illustrations in English word order');
+const heading=document.createElement('h2');heading.textContent='Pictures';heading.className='picture-heading';
+const stack=document.createElement('div');stack.className='picture-stack';
+const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source');
+for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji']]){
+ const option=document.createElement('option');option.value=value;option.textContent=label;picker.append(option);
+}
+picker.value='arasaac';
+aside.append(heading,picker,stack);
+const content=document.createElement('div');content.className='content-column';
+while(main.firstChild)content.append(main.firstChild);
+main.append(aside,content);
+const style=document.createElement('style');
+style.textContent=`
+.visual-layout{max-width:950px;display:grid;grid-template-columns:minmax(110px,28%) minmax(0,1fr);gap:12px;padding:12px;align-items:start}
+.picture-column{position:sticky;top:8px;max-height:calc(100dvh - 16px);overflow:auto;background:white;border:1px solid #dce3e9;border-radius:16px;padding:10px 6px;min-height:65vh}
+.picture-heading{text-align:center;font-size:1rem;margin:3px 0 8px}
+#picture-column select{width:100%;max-width:100%;font:inherit;font-size:.78rem;margin-bottom:10px}
+.picture-stack{display:flex;flex-direction:column;gap:10px}
+.picture-card{border:1px solid #dce3e9;border-radius:12px;min-height:92px;padding:8px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#f8fafc}
+.picture-card img{width:68px;height:68px;object-fit:contain}
+.picture-card .emoji{font-size:2.8rem;line-height:1.3}
+.picture-card .word{font-size:.83rem;text-align:center;overflow-wrap:anywhere}
 .content-column{min-width:0}.content-column .panel{padding:14px;margin:12px 0}
 .content-column h1{font-size:1.3rem}.content-column .choices{gap:8px}
 .content-column .choices button{font-size:1rem;padding:12px 4px;min-height:85px}
-@media(min-width:650px){main.visual-layout{grid-template-columns:185px minmax(0,1fr);gap:20px;padding:24px}.picture-column{padding:14px}}
+@media(min-width:650px){.visual-layout{grid-template-columns:185px minmax(0,1fr);gap:20px;padding:24px}}
 `;
-document.head.append(css);
-function tokens(text){return [...text.toLowerCase().matchAll(/[a-z]+(?:'[a-z]+)?/g)].map(m=>m[0])}
-const ignored=new Set('i me my mine you your he she it we they the a an to of in on at for from with by and or but is are was were be been being have has had do does did need needs needed can could would should will this that these those there here as if then than into onto about today tomorrow before after very just please'.split(' '));
+document.head.append(style);
+const stop=new Set('i me my mine you your yours he she it we they them the a an to of in on at for from with by and or but is are was were be been being have has had do does did need needs needed can could would should will this that these those there here as if then than into onto about today tomorrow before after very just please'.split(' '));
 const irregular={cashews:'cashew',shelves:'shelf',knives:'knife',feet:'foot',teeth:'tooth',children:'child',men:'man',women:'woman'};
-const fallbackEmoji={ladder:'🪜',cashew:'🥜',jar:'🫙',shelf:'🗄️',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
-function visualMatches(){
- const english=englishResult.lang==='en'?englishResult.textContent:original.textContent;
- const result=[];
- for(const token of tokens(english)){
-  const item=words.find(entry=>entry.forms.includes(token));
-  if(item)result.push(item);
-  else if(!ignored.has(token)&&token.length>2){
-   const base=irregular[token]||(token.endsWith('ies')?token.slice(0,-3)+'y':token.endsWith('s')&&!token.endsWith('ss')?token.slice(0,-1):token);
-   result.push({label:base,emoji:fallbackEmoji[base]||'🔎',icon:base,unknown:true});
-  }
+const emoji={ladder:'🪜',cashew:'🥜',jar:'🫙',shelf:'🗄️',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
+const verifiedSearch={ladder:'ladder',jar:'jar',shelf:'shelf',cashew:null};
+const iconCache=new Map();
+let renderVersion=0;
+function englishText(){
+ if(result.textContent==='Nothing translated yet.'||result.textContent==='Translation unavailable.')return '';
+ return result.lang==='en'?result.textContent:original.textContent;
+}
+function matches(){
+ const tokens=englishText().toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+ const output=[];
+ for(const token of tokens){
+  if(stop.has(token))continue;
+  const known=words.find(w=>w.forms.includes(token));
+  const base=irregular[token]||(token.endsWith('ies')?token.slice(0,-3)+'y':token.endsWith('s')&&!token.endsWith('ss')?token.slice(0,-1):token);
+  // Unknown words are not assumed to be nouns. Search only if a vetted entry exists.
+  if(known)output.push(known);
+  else if(Object.hasOwn(verifiedSearch,base))output.push({label:base,emoji:emoji[base]||'🔎',icon:base,unknown:true});
+  if(output.length>=30)break;
  }
- return result.slice(0,40);
+ return output;
 }
-async function arasaacImage(item,placeholder){
- try{
-  const response=await fetch('https://api.arasaac.org/v1/pictograms/en/search/'+encodeURIComponent(item.label));
-  if(!response.ok)throw Error('not found');
-  const results=await response.json();
-  const exact=results.find(x=>(x.keywords||[]).some(k=>k.keyword?.toLowerCase()===item.label));
-  if(!exact?._id)throw Error('no exact match');
-  const img=document.createElement('img');img.alt='';img.loading='lazy';img.src='https://static.arasaac.org/pictograms/'+exact._id+'/'+exact._id+'_300.png';
-  img.onerror=()=>img.replaceWith(emojiElement(item.emoji));
-  if(placeholder.isConnected)placeholder.replaceWith(img);
- }catch(e){/* Keep the emoji fallback if ARASAAC is unavailable. */}
+function emojiNode(value){
+ const span=document.createElement('span');span.className='emoji';span.textContent=value;span.setAttribute('aria-hidden','true');return span;
 }
-function iconElement(item){
- const img=document.createElement('img');
- img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';
- img.src='https://api.iconify.design/iconoir/'+encodeURIComponent(item.icon)+'.svg';
- img.onerror=()=>{img.replaceWith(emojiElement(item.emoji))};
+function imageNode(src,emojiFallback){
+ const img=document.createElement('img');img.alt='';img.loading='lazy';img.referrerPolicy='no-referrer';img.src=src;
+ img.onerror=()=>img.replaceWith(emojiNode(emojiFallback));
  return img;
 }
-function emojiElement(emoji){const span=document.createElement('span');span.className='emoji';span.textContent=emoji;span.setAttribute('aria-hidden','true');return span}
-function renderPictures(){
- pictureStack.replaceChildren();
- let matches=[];try{matches=visualMatches()}catch(e){console.error('Picture matching failed',e)}
- for(const item of matches){
-  const card=document.createElement('div');card.className='picture-card';
-  if(sourcePicker.value==='emoji')card.append(emojiElement(item.emoji));
-  else if(sourcePicker.value==='arasaac'){
-   const placeholder=emojiElement(item.emoji);card.append(placeholder);arasaacImage(item,placeholder);
-  }else if(item.unknown){const placeholder=emojiElement(item.emoji);card.append(placeholder);arasaacImage(item,placeholder)}
-  else card.append(iconElement(item));
-  const label=document.createElement('span');label.className='word';label.textContent=item.label;
-  card.append(label);pictureStack.append(card);
+async function arasaac(item,placeholder,version){
+ const search=Object.hasOwn(verifiedSearch,item.label)?verifiedSearch[item.label]:item.label;
+ if(!search)return;
+ try{
+  let id=iconCache.get(search);
+  if(id===undefined){
+   const response=await fetch('https://api.arasaac.org/v1/pictograms/en/search/'+encodeURIComponent(search));
+   if(!response.ok)throw Error('Pictogram search unavailable');
+   const list=await response.json();
+   const found=list.find(x=>(x.keywords||[]).some(k=>k.keyword?.toLowerCase()===search));
+   id=found?._id||null;iconCache.set(search,id);
+  }
+  if(!id||version!==renderVersion||!placeholder.isConnected)return;
+  const url='https://static.arasaac.org/pictograms/'+id+'/'+id+'_300.png';
+  placeholder.replaceWith(imageNode(url,item.emoji));
+ }catch(e){/* Visible fallback stays in place. */}
+}
+function draw(){
+ const version=++renderVersion;
+ stack.replaceChildren();
+ const items=matches();
+ if(!items.length){
+  const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation.';p.style.fontSize='.8rem';stack.append(p);return;
  }
- if(!matches.length){
-  const message=document.createElement('p');message.className='muted';message.style.fontSize='.8rem';
-  message.textContent='Pictures appear here after speech is translated.';pictureStack.append(message);
+ for(const item of items){
+  const card=document.createElement('div');card.className='picture-card';
+  const fallback=emojiNode(item.emoji);
+  if(picker.value==='emoji')card.append(fallback);
+  else if(picker.value==='iconoir'&&!item.unknown){
+   card.append(imageNode('https://api.iconify.design/iconoir/'+encodeURIComponent(item.icon)+'.svg',item.emoji));
+  }else{card.append(fallback);arasaac(item,fallback,version)}
+  const label=document.createElement('span');label.className='word';label.textContent=item.label;card.append(label);stack.append(card);
  }
 }
-new MutationObserver(renderPictures).observe(englishResult,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['lang']});
-new MutationObserver(renderPictures).observe(original,{childList:true,characterData:true,subtree:true});
-renderPictures();
-
-const credits=document.createElement('p');credits.className='muted';credits.style.cssText='font-size:.68rem;line-height:1.35;margin-top:12px';credits.textContent='Iconoir: MIT license. ARASAAC pictograms: Government of Aragon / Sergio Palao, CC BY-NC-SA 4.0; used here for noncommercial educational purposes. Emoji: device fonts. ARASAAC matching is experimental.';pictureColumn.append(credits);
+picker.onchange=draw;
+new MutationObserver(draw).observe(result,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['lang']});
+new MutationObserver(draw).observe(original,{childList:true,characterData:true,subtree:true});
+draw();
