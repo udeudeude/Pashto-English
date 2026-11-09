@@ -7,8 +7,8 @@ let currentSentence='';
 const css=document.createElement('style');
 css.textContent=`
 .picture-card{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none}
-.picture-card.rejected{opacity:.65;border:2px dashed #b45309}
-.picture-card.rejected::after{content:'↻';position:absolute;right:5px;top:3px;color:#9a3412;font-weight:bold}
+.picture-card.rejected{background:#e5e7eb;border:2px dashed #9ca3af;color:#6b7280}.picture-card.rejected img,.picture-card.rejected .emoji{filter:grayscale(1);opacity:.35}.picture-card.rejected .word{opacity:.55}
+.picture-card.rejected::after{content:'↻';position:absolute;right:5px;top:3px;color:#6b7280;font-weight:bold}
 .picture-card .gesture-stroke{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 .picture-card .gesture-stroke line{stroke:#d92d20;stroke-width:7;stroke-linecap:round}
 .picture-picker{position:fixed;inset:0;z-index:999;background:#0008;display:flex;align-items:end;justify-content:center}
