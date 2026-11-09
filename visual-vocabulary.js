@@ -84,7 +84,7 @@ aside.setAttribute('aria-label','Illustrations in English word order');
 const heading=document.createElement('h2');heading.textContent='Pictures';heading.className='picture-heading';
 const stack=document.createElement('div');stack.className='picture-stack';
 const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source');
-for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji']]){
+for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji / ایموجي']]){
  const option=document.createElement('option');option.value=value;option.textContent=label;picker.append(option);
 }
 picker.value='arasaac';
@@ -111,7 +111,7 @@ style.textContent=`
 document.head.append(style);
 const stop=new Set('i me my mine you your yours he she it we they them the a an to of in on at for from with by and or but is are was were be been being have has had do does did need needs needed can could would should will this that these those there here as if then than into onto about today tomorrow before after very just please'.split(' '));
 const irregular={cashews:'cashew',shelves:'shelf',knives:'knife',feet:'foot',teeth:'tooth',children:'child',men:'man',women:'woman'};
-const emoji={ladder:'🪜',cashew:'🥜',jar:'🫙',shelf:'📚',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
+const emoji={ladder:'🪜',cashew:'❔',jar:'🫙',shelf:'❔',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
 const verifiedSearch={ladder:'ladder',jar:'jar',shelf:null,cashew:null};
 const iconCache=new Map();
 let renderVersion=0;
