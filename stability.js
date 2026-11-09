@@ -80,7 +80,7 @@ async function openOptions(card){
  overlay.hidden=false;
  title.textContent='Pictures for '+word+' / د انځور بدیلونه';
  grid.replaceChildren();
- const exact=group('Pictures of '+word,'د همدې کلمې انځورونه');
+ const exact=group('Same word: '+word,'هماغه کلمه');
  const relatedItems=group('Related concepts','اړوند مفاهیم');
  const soundingItems=group('Similar-sounding words','ورته غږېدونکې کلمې');
  const source=$('original')?.textContent||'';
