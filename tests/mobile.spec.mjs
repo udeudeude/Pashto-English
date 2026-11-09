@@ -166,3 +166,20 @@ test('Pashto recording does not replace the shared replay handler',async ({page}
   const controller=await page.evaluate(()=>Object.keys(window.pashtoApp));
   expect(controller).toEqual(expect.arrayContaining(['begin','process','fail','demo']));
 });
+
+test('failed translation cannot leave pictures that look like a successful result',async ({page})=>{
+ await page.evaluate(()=>{
+  const original=document.getElementById('original');
+  original.textContent='The ladder is outside.';
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='زینه';
+ });
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(1);
+ await page.evaluate(()=>{
+  const result=document.getElementById('result');
+  result.removeAttribute('lang');
+  result.textContent='Translation unavailable / ژباړه نشته';
+ });
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(0);
+ await expect(page.locator('#picture-column .picture-stack')).toContainText('له ژباړې وروسته');
+});
