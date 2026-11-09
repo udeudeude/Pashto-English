@@ -145,22 +145,55 @@ function imageNode(src,emojiFallback){
  img.onerror=()=>img.replaceWith(emojiNode(emojiFallback));
  return img;
 }
-async function arasaac(item,placeholder,version){
- const search=Object.hasOwn(verifiedSearch,item.label)?verifiedSearch[item.label]:item.label;
- if(!search)return;
- try{
-  let id=iconCache.get(search);
-  if(id===undefined){
-   const response=await fetch('https://api.arasaac.org/v1/pictograms/en/search/'+encodeURIComponent(search));
-   if(!response.ok)throw Error('Pictogram search unavailable');
-   const list=await response.json();
-   const found=list.find(x=>(x.keywords||[]).some(k=>k.keyword?.toLowerCase()===search));
-   id=found?._id||null;iconCache.set(search,id);
+// Prefer real pictograms, use emoji only when no matching image is accessible.
+// "shelf" and "cashew" must not be silently replaced with books or peanuts.
+async function availablePicture(item,card,version,sourceName){
+ const catalog=window.pictureCatalog;
+ if(!catalog)return;
+ let visual=card.querySelector(':scope > img, :scope > .emoji');
+ const isCurrent=()=>version===renderVersion&&card.isConnected;
+ function show(choice,fallback){
+  if(!isCurrent()||!choice?.url)return;
+  const previous=card.querySelector(':scope > img, :scope > .emoji');
+  if(!previous)return;
+  if(previous.tagName==='IMG'&&previous.src===choice.url)return;
+  const img=document.createElement('img');
+  img.src=choice.url;
+  img.alt='';
+  img.draggable=false;
+  img.loading='lazy';
+  img.referrerPolicy='no-referrer';
+  img.title=item.label+' · '+choice.source;
+  img.onerror=()=>{
+   if(!isCurrent()||!img.isConnected)return;
+   if(fallback)fallback();else img.replaceWith(emojiNode(item.emoji));
+  };
+  previous.replaceWith(img);
+ }
+ // A small set of manually mapped icons can appear immediately; ARASAAC
+ // results then replace them if a better matching image is available.
+ const immediate=catalog.immediate(item.label);
+ if(immediate?.length)show(immediate[0]);
+ const pictures=await catalog.find(item.label,{
+  max:6,prefer:sourceName==='iconoir'?'iconify':'arasaac'
+ }).catch(()=>[]);
+ if(!isCurrent()||!pictures.length)return;
+ let index=0;
+ function next(){
+  if(index>=pictures.length){
+   // Keep the valid existing icon if all returned image URLs fail.
+   const fallback=immediate?.[0];
+   if(fallback)show(fallback,()=>{const old=card.querySelector(':scope > img');old?.replaceWith(emojiNode(item.emoji))});
+   else{
+    const old=card.querySelector(':scope > img');
+    old?.replaceWith(emojiNode(item.emoji));
+   }
+   return;
   }
-  if(!id||version!==renderVersion||!placeholder.isConnected)return;
-  const url='https://static.arasaac.org/pictograms/'+id+'/'+id+'_300.png';
-  placeholder.replaceWith(imageNode(url,item.emoji));
- }catch(e){/* Visible fallback stays in place. */}
+  const candidate=pictures[index++];
+  show(candidate,next);
+ }
+ next();
 }
 function draw(){
  const version=++renderVersion;
@@ -173,9 +206,10 @@ function draw(){
   const card=document.createElement('div');card.className='picture-card';
   const fallback=emojiNode(item.emoji);
   if(picker.value==='emoji')card.append(fallback);
-  else if(picker.value==='iconoir'&&!item.unknown){
-   card.append(imageNode('https://api.iconify.design/iconoir/'+encodeURIComponent(item.icon)+'.svg',item.emoji));
-  }else{card.append(fallback);arasaac(item,fallback,version)}
+  else {
+   card.append(fallback);
+   availablePicture(item,card,version,picker.value);
+  }
   const label=document.createElement('span');label.className='word';label.textContent=item.label;card.append(label);stack.append(card);
  }
 }
