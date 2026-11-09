@@ -117,8 +117,11 @@ const verifiedSearch={ladder:'ladder',jar:'jar',shelf:null,cashew:null};
 const iconCache=new Map();
 let renderVersion=0;
 function englishText(){
- if(result.textContent==='Nothing translated yet.'||result.textContent==='Translation unavailable.')return '';
- return result.lang==='en'?result.textContent:original.textContent;
+ // Do not show apparently verified pictures when translation is missing or failed.
+ // The source transcript may exist even after a translation error.
+ if(result.getAttribute('lang')==='en')return result.textContent;
+ if(result.getAttribute('lang')==='ps')return original.textContent;
+ return '';
 }
 function matches(){
  const tokens=englishText().toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
