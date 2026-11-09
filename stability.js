@@ -74,7 +74,7 @@ async function openOptions(card){
  for(const name of related[word]||[])option(card,{kind:'emoji',word:name,symbol:symbols[name]||'❔'},'Related / اړوند');
  group('Similar-sounding words','ورته غږېدونکې کلمې');
  const source=$('original')?.textContent||'';
- if(/[\\u0600-\\u06ff]/.test(source)){
+ if(/[\u0600-\u06ff]/.test(source)){
   const note=document.createElement('p');note.className='picture-note';
   note.textContent='Pashto sound-alikes require verified pronunciation data. / د پښتو د ورته غږونو لپاره تایید شوي معلومات پکار دي.';grid.append(note);
  }else{
