@@ -18,15 +18,15 @@ Do **not** assume the code in pull request #2 is deployed to the website until i
 - Implemented `pashto-voice.js` experimental, on-device Pashto synthesis, with explicit `ps` voice check, real audio samples, and mobile Web Audio playback.
 - Wired the experimental voice into Pashto translations and Replay, removing reliance on installed system Pashto voices for that path.
 - Added a bilingual voice-test button in Compatibility and privacy.
-- Added automated voice-synthesis test using Node 24 and pinned Spellophone 0.2.1. The test generates `test-results/pashto-voice.wav` for human review; automation checks non-silent audio but cannot judge pronunciation.
+- Added automated voice-synthesis test using Node 24 and pinned Spellophone 0.2.1. **Test failed decisively:** package lacks `ps_dict`; published Spellophone 0.2.1 is built from eSpeak NG **1.52.0** (before Pashto was added), despite broad multilingual claims. No WAV was generated.
 - Added a browser regression test ensuring Pashto speech playback calls the on-device voice provider.
 - Added a GitHub Actions job to save experimental audio as a workflow artifact.
 
 ## Critical next checks
 
-1. See the outcome of the `browser-tests` and `pashto-voice-test` checks on pull request #2.
-2. If either fails, fix it **on the same branch**, push and wait for passing checks.
-3. Download the WAV audio artifact from the workflow and have an Afghan Pashto speaker listen and judge intelligibility. Document the result.
+1. Track the new `.github/workflows/experimental-pashto-build.yml` job: it attempts a reproducible build of newer eSpeak NG (pinned commit `688cb60368d6e0998f3632af8d1c3c2ad4191fc2`) through Spellophone's build tooling and tests real Pashto waveform generation.
+2. **Do not merge PR #2 while its published package cannot synthesize Pashto.** If newer engine builds and outputs a valid WAV, integrate the tested compiled assets or a properly packaged build; do not silently fall back to Persian.
+3. Download the WAV audio artifact from the newer-engine workflow (only if generation succeeds) and have an Afghan Pashto speaker judge intelligibility. Document the result.
 4. Test iPhone Safari and Android Chrome, particularly whether downloads, WebAssembly, Pashto dictionary, and audio-unlock work together. Browser emulation alone is insufficient.
 5. If functional, merge PR #2, verify GitHub Pages deployment, then improve recognition and translation fidelity.
 
