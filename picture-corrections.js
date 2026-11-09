@@ -52,23 +52,92 @@ async function alternatives(label,emoji,icon){
  }catch(e){/* Offline choices remain usable. */}
  candidates.set(key,list);return list;
 }
+
+// Curated semantic and English phonetic alternatives. These are suggestions, not corrections.
+const relatedWords={
+ top:['lid','cap','shelf','roof','surface'],shelf:['rack','cabinet','bookcase','ledge'],
+ cashew:['peanut','almond','walnut','nut'],jar:['bottle','container','glass','lid'],
+ ladder:['stairs','step','stool'],reach:['touch','grab','stretch'],
+ house:['home','building','room'],water:['drink','river','rain'],
+ medicine:['pill','tablet','bottle'],phone:['telephone','tablet','radio'],
+ bread:['toast','rice','food'],coat:['jacket','shirt','sweater']
+};
+const soundWords={
+ top:['tap','tip','pot','stop'],shelf:['self','shell'],cashew:['cash','casual'],
+ jar:['jaw','car'],ladder:['latter','letter'],reach:['rich','ridge','beach'],
+ cap:['cat','cab','cup'],lid:['lead','lit'],coat:['code','goat'],
+ pen:['pin','pan'],bed:['bad','bet'],rice:['rise','lice'],
+ water:['waiter'],book:['buck','look'],ship:['sheep','chip']
+};
+// Small reviewed Pashto concept lexicon. Do not equate romanized spellings with
+// Pashto pronunciations: future phonetic search requires a tested Pashto model.
+const pashtoConcepts={'کور':'house','کار':'work','اوبه':'water','ډوډۍ':'bread','کتاب':'book','مور':'mother','پلار':'father','ماشوم':'child','موټر':'car','ښوونځی':'school','ډاکټر':'doctor','پیسې':'money','چای':'tea'};
+const pashtoNearForms={'کور':['کار'],'کار':['کور']};
+function spokenLanguage(){
+ const text=document.getElementById('original')?.textContent||'';
+ return /[\u0600-\u06ff]/.test(text)?'ps':'en';
+}
+function pashtoPossibilities(label){
+ const text=document.getElementById('original')?.textContent||'';
+ const tokens=text.match(/[\u0600-\u06ff]+/g)||[];
+ const possible=new Set();
+ for(const token of tokens){
+  const translated=pashtoConcepts[token];
+  if(translated===label)for(const other of pashtoNearForms[token]||[])if(pashtoConcepts[other])possible.add(pashtoConcepts[other]);
+ }
+ return [...possible];
+}
+function nearbyConcepts(label,kind){
+ if(kind==='related')return relatedWords[label]||[];
+ if(spokenLanguage()==='ps')return pashtoPossibilities(label);
+ return soundWords[label]||[];
+}
+function optionForWord(word,kind){
+ const match=window.__pictureVocab?.find(v=>v.label===word||v.forms?.includes(word));
+ return {word,type:'emoji',value:match?.emoji||({lid:'🫙',cap:'🧢',shelf:'📚',roof:'🏠',peanut:'🥜',almond:'🌰',walnut:'🌰',nut:'🌰',bottle:'🍾',glass:'🥛',cabinet:'🗄️',rack:'🗄️',bookcase:'📚',stairs:'🪜',step:'🪜',stool:'🪑',touch:'👆',grab:'🤲',stretch:'🙆',cash:'💵',car:'🚗',work:'🛠️',shell:'🐚',ship:'🚢',sheep:'🐑',chip:'🍟'}[word]||'🔎'),source:kind==='related'?'Related concept':'Similar sound'};
+}
+
 async function openPicker(card){
  const label=card.dataset.label,emoji=card.dataset.emoji,icon=card.dataset.icon;
- const area=modal.querySelector('.options');area.replaceChildren();modal.querySelector('h2').textContent='Choose picture: '+label;
+ const area=modal.querySelector('.options');
+ modal.querySelector('h2').textContent='Choose picture: '+label;
  modal.hidden=false;
- const loading=document.createElement('p');loading.textContent='Finding alternatives…';area.append(loading);
- const options=await alternatives(label,emoji,icon);
- if(modal.hidden)return;
+ const request=Symbol('request');modal.activeRequest=request;
  area.replaceChildren();
- for(const option of options){
-  const button=document.createElement('button');button.type='button';button.className='option';
-  button.append(option.type==='emoji'?emojiNode(option.value):sourceImage(option.value,emoji));
-  const source=document.createElement('small');source.textContent=option.source;button.append(source);
-  button.onclick=()=>{corrections.set(label,option);applyChoice(card,option);modal.hidden=true};
-  area.append(button);
+ const loading=document.createElement('p');loading.textContent='Finding alternatives…';area.append(loading);
+ const exact=await alternatives(label,emoji,icon);
+ if(modal.hidden||modal.activeRequest!==request)return;
+ area.replaceChildren();
+ function addGroup(title,options){
+  if(!options.length)return;
+  const heading=document.createElement('h3');heading.textContent=title;
+  heading.style.cssText='grid-column:1/-1;margin:10px 0 0;font-size:1rem';
+  area.append(heading);
+  for(const option of options){
+   const button=document.createElement('button');button.type='button';button.className='option';
+   button.append(option.type==='emoji'?emojiNode(option.value):sourceImage(option.value,emoji));
+   const source=document.createElement('small');source.textContent=option.word?option.word+' · '+option.source:option.source;
+   button.append(source);
+   button.onclick=()=>{
+    corrections.set(label,option);applyChoice(card,option);
+    // A different concept is a proposed correction, not a verified translation.
+    if(option.word&&option.word!==label){
+     card.dataset.suggestedWord=option.word;
+     card.setAttribute('aria-label',label+' illustrated as '+option.word+'; check the spoken word');
+    }
+    modal.hidden=true;
+   };
+   area.append(button);
+  }
  }
- if(!options.length)area.textContent='No alternatives available.';
+ addGroup('Same word: different pictures',exact);
+ addGroup('Similar or related things',nearbyConcepts(label,'related').map(w=>optionForWord(w,'related')));
+ addGroup(spokenLanguage()==='ps'?'Similar-sounding Pashto words (limited verified vocabulary)':'Similar-sounding English words',nearbyConcepts(label,'sound').map(w=>optionForWord(w,'sound')));
+ const note=document.createElement('p');note.style.cssText='grid-column:1/-1;font-size:.8rem;color:#526477';
+ note.textContent='Similar-sounding words are possibilities, not confirmed speech. Choosing a picture does not change the translation. Pashto suggestions are limited to reviewed word pairs.';
+ area.append(note);
 }
+
 function enhance(card){
  if(card.dataset.enhanced)return;
  card.dataset.enhanced='yes';
