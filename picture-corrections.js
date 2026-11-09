@@ -6,7 +6,7 @@ const candidates=new Map();
 let currentSentence='';
 const css=document.createElement('style');
 css.textContent=`
-.picture-card{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.picture-card{position:relative;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer}.picture-card img,.picture-card .emoji,.picture-card .word{pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .picture-card.rejected{background:#e5e7eb;border:2px dashed #9ca3af;color:#6b7280}.picture-card.rejected img,.picture-card.rejected .emoji{filter:grayscale(1);opacity:.35}.picture-card.rejected .word{opacity:.55}
 .picture-card.rejected::after{content:'↻';position:absolute;right:5px;top:3px;color:#6b7280;font-weight:bold}
 .picture-card .gesture-stroke{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
@@ -151,36 +151,54 @@ function enhance(card){
  card.setAttribute('title','Hold for alternate pictures; slash diagonally to reject');
  card.setAttribute('tabindex','0');card.setAttribute('role','button');
  card.setAttribute('aria-label',label+'. Hold for alternatives, swipe diagonally to reject.');
- let down=null,timer=null,held=false,stroke=null;
+ let down=null,timer=null,held=false,swiped=false;
  const clear=()=>{clearTimeout(timer);timer=null};
- card.addEventListener('pointerdown',e=>{
-  if(e.pointerType==='mouse'&&e.button!==0)return;
-  down={x:e.clientX,y:e.clientY,time:Date.now()};held=false;
-  clear();timer=setTimeout(()=>{if(down){held=true;openPicker(card)}},650);
- });
- card.addEventListener('pointermove',e=>{
+ const begin=(x,y)=>{
+  down={x,y};held=false;swiped=false;clear();
+  timer=setTimeout(()=>{if(down&&!swiped){held=true;down=null;openPicker(card)}},550);
+ };
+ const move=(x,y)=>{
   if(!down||held)return;
-  if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>12)clear();
- });
- card.addEventListener('pointerup',e=>{
+  if(Math.hypot(x-down.x,y-down.y)>15){swiped=true;clear()}
+ };
+ const finish=(x,y)=>{
   clear();if(!down||held){down=null;return}
-  const dx=e.clientX-down.x,dy=e.clientY-down.y;down=null;
-  if(Math.abs(dx)>32&&Math.abs(dy)>32&&Math.abs(dx/dy)>.35&&Math.abs(dx/dy)<3){
+  const dx=x-down.x,dy=y-down.y;down=null;
+  if(Math.abs(dx)>28&&Math.abs(dy)>28&&Math.abs(dx/dy)>.35&&Math.abs(dx/dy)<3){
    card.classList.add('rejected');
-   const old=card.querySelector('.gesture-stroke');old?.remove();
+   card.querySelector('.gesture-stroke')?.remove();
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
    svg.setAttribute('viewBox','0 0 100 100');svg.setAttribute('preserveAspectRatio','none');svg.classList.add('gesture-stroke');
    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
    line.setAttribute('x1',dx>0?'8':'92');line.setAttribute('y1',dy>0?'8':'92');
    line.setAttribute('x2',dx>0?'92':'8');line.setAttribute('y2',dy>0?'92':'8');
-   svg.append(line);card.append(svg);setTimeout(()=>svg.remove(),800);
+   svg.append(line);card.append(svg);setTimeout(()=>svg.remove(),700);
    corrections.delete(label);
   }
- });
- card.addEventListener('pointercancel',()=>{clear();down=null});
- card.addEventListener('contextmenu',e=>{e.preventDefault();clear();openPicker(card)});
+ };
+ // iOS Safari may turn a held image into text selection and a diagonal drag into
+ // page scrolling. Explicit non-passive touch listeners suppress those defaults.
+ card.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1)return;
+  e.preventDefault();begin(e.touches[0].clientX,e.touches[0].clientY);
+ },{passive:false});
+ card.addEventListener('touchmove',e=>{
+  e.preventDefault();if(e.touches.length===1)move(e.touches[0].clientX,e.touches[0].clientY);
+ },{passive:false});
+ card.addEventListener('touchend',e=>{
+  e.preventDefault();if(e.changedTouches.length)finish(e.changedTouches[0].clientX,e.changedTouches[0].clientY);
+ },{passive:false});
+ card.addEventListener('touchcancel',()=>{clear();down=null});
+ // Mouse and trackpad fallback. Touch gestures are handled above to avoid duplicates.
+ card.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button===0)begin(e.clientX,e.clientY)});
+ card.addEventListener('pointermove',e=>{if(e.pointerType==='mouse')move(e.clientX,e.clientY)});
+ card.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')finish(e.clientX,e.clientY)});
+ card.addEventListener('dragstart',e=>e.preventDefault());
+ card.addEventListener('selectstart',e=>e.preventDefault());
+ card.addEventListener('contextmenu',e=>{e.preventDefault();clear();down=null;openPicker(card)});
  card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPicker(card)}});
- card.addEventListener('click',()=>{if(card.classList.contains('rejected'))openPicker(card)});
+ card.addEventListener('click',e=>{if(e.detail===0)openPicker(card)});
+
 }
 function sync(){
  const text=document.getElementById('original')?.textContent+'|'+document.getElementById('result')?.textContent;
