@@ -80,10 +80,11 @@ const main=document.querySelector('main');
 main.classList.add('visual-layout');
 const aside=document.createElement('aside');
 aside.id='picture-column';
-aside.setAttribute('aria-label','Illustrations in English word order');
+aside.className='picture-column';
+aside.setAttribute('aria-label','Illustrations in English word order / انځورونه د انګلیسي کلمو په ترتیب');
 const heading=document.createElement('h2');heading.textContent='Pictures / انځورونه';heading.className='picture-heading';
 const stack=document.createElement('div');stack.className='picture-stack';
-const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source');
+const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source / د انځور سرچینه');
 for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji / ایموجي']]){
  const option=document.createElement('option');option.value=value;option.textContent=label;picker.append(option);
 }
@@ -163,7 +164,7 @@ function draw(){
  stack.replaceChildren();
  const items=matches();
  if(!items.length){
-  const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation.';p.style.fontSize='.8rem';stack.append(p);return;
+  const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation. / انځورونه له ژباړې وروسته ښکاري.';p.style.fontSize='.8rem';stack.append(p);return;
  }
  for(const item of items){
   const card=document.createElement('div');card.className='picture-card';
