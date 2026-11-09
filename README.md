@@ -34,11 +34,11 @@ GitHub Pages deployment from **main** is already configured. New topic-branch co
 
 ## Next engineering milestones
 
-1. Benchmark Pashto speech recognition on real iPhone and Android devices.
-2. Evaluate deployable open Pashto speech synthesis models and their licenses, size, and phone performance.
-3. Evaluate free or locally hosted Pashto–English translation models against real classroom utterances.
-4. Replace unreliable browser-dependent components with verified alternatives.
-5. Add automated tests, performance measurements, and clear offline/online status.
+1. Benchmark Pashto speech recognition using legitimately acquired, transcribed Afghan Pashto recordings and real phones; see [evaluation guide](docs/PASHTO_RECOGNITION_EVALUATION.md).
+2. Evaluate the existing offline-capable Pashto voice with fluent speakers, including dialect differences and numbers.
+3. Evaluate more accurate and sustainable free Pashto–English translation against bilingual references.
+4. Verify iPhone and Android microphone and touch behavior on physical devices.
+5. Continue automated regression testing and realistic performance measurements.
 
 ## Development
 
@@ -63,3 +63,11 @@ The original `touch-controls.js`, `bilingual-interface.js`, and `picture-correct
 The browser downloads GPL-licensed, locally hosted eSpeak NG engine and Pashto dictionary files on first use, then synthesizes translated Pashto text on the phone. It does **not** require a built-in Pashto system voice or an account. Expand **Compatibility and privacy** and tap **Test Pashto voice** to check audible output. Generated speech may sound robotic or contain errors, particularly with numbers; do not use without a fluent-speaker check. The voice source, license, and build provenance are in [`vendor/pashto-voice/`](vendor/pashto-voice/). Source build: eSpeak NG commit `688cb603...`; Spellophone commit `f6dc436c...`. The translation provider still receives recognized text.
 
 Automated verification: **10 browser tests passed** (mobile-sized WebKit and Chromium), plus a separate Node 24 waveform-generation test. These do not establish on-device intelligibility or dependable translation.
+
+## Test without a Pashto speaker
+
+Open **Try without another speaker / د بل ویونکي پرته ازموینه**. Four example buttons exercise the actual public translation service and synthesized output, without a microphone. They support English-to-Pashto and Pashto-to-English. This is intended for the English-speaking teacher or developer; the Pashto-speaking participant does not need to read or type. These tests prove only that the mechanisms operate, **not** that the translations are linguistically correct.
+
+The app shares one translation and replay controller for both directions, clears stale translations after failures, validates obvious service placeholders, and avoids displaying vocabulary illustrations as if a failed translation were successful.
+
+For reproducible evaluation using publicly licensed transcribed Pashto recordings, consult [Pashto recognition evaluation](docs/PASHTO_RECOGNITION_EVALUATION.md). Do not redistribute audio or identifiable speaker data.

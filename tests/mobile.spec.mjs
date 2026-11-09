@@ -54,7 +54,7 @@ test('incorrect translation placeholder is not treated as successful translation
     try { return await translate('Hello','en','ps'); }
     catch(error) { return error.message; }
   });
-  expect(result).toContain('Invalid translation placeholder');
+  expect(result).toContain('invalid placeholder');
 });
 
 test('Pashto playback uses the local voice engine even without a system Pashto voice', async ({ page }) => {
@@ -76,4 +76,110 @@ test('bundled Pashto voice synthesizes speech on a user tap', async ({page}) => 
   await expect(page.locator('#test-pashto-voice')).toBeVisible();
   await page.locator('#test-pashto-voice').click();
   await expect(page.locator('#status')).toContainText('Playing Pashto translation', {timeout:90_000});
+});
+
+
+test('teacher can exercise English-to-Pashto translation and audio without using a microphone', async ({page}) => {
+  const requests=[];
+  await page.route('https://api.mymemory.translated.net/**',route=>{
+    const pair=new URL(route.request().url()).searchParams.get('langpair');
+    requests.push(pair);
+    return route.fulfill({
+      status:200,contentType:'application/json',
+      body:JSON.stringify({responseStatus:200,responseData:{translatedText:'سلام'}})
+    });
+  });
+  const translated=await page.evaluate(async()=>{
+    let spoken='';
+    window.pashtoVoice.speak=async text=>{spoken=text};
+    document.getElementById('demo-hello').click();
+    // Poll state via the existing controller, not a real microphone.
+    while(document.getElementById('result').textContent!=='سلام')await new Promise(r=>setTimeout(r,15));
+    await Promise.resolve();
+    return {spoken,original:document.getElementById('original').textContent};
+  });
+  expect(translated).toEqual({spoken:'سلام',original:'Hello.'});
+  expect(requests).toEqual(['en|ps']);
+  await expect(page.locator('#replay')).toBeEnabled();
+  await expect(page.locator('#result')).toHaveAttribute('dir','rtl');
+  await expect(page.locator('#status')).toContainText(' / ');
+});
+
+test('Pashto-to-English practice uses the shared translation and replay controls', async ({page}) => {
+  const requests=[];
+  await page.route('https://api.mymemory.translated.net/**',route=>{
+    const pair=new URL(route.request().url()).searchParams.get('langpair');
+    requests.push(pair);
+    return route.fulfill({
+      status:200,contentType:'application/json',
+      body:JSON.stringify({responseStatus:200,responseData:{translatedText:'Hello, how are you?'}})
+    });
+  });
+  await page.evaluate(()=>document.getElementById('demo-pashto').click());
+  await expect(page.locator('#result')).toHaveText('Hello, how are you?');
+  await expect(page.locator('#original')).toHaveAttribute('dir','rtl');
+  await expect(page.locator('#result')).toHaveAttribute('dir','ltr');
+  await expect(page.locator('#replay')).toBeEnabled();
+  expect(requests).toEqual(['ps|en']);
+});
+
+test('a failed request clears earlier translation and disables stale Replay',async ({page})=>{
+  await page.route('https://api.mymemory.translated.net/**',route=>{
+    const q=new URL(route.request().url()).searchParams.get('q');
+    const translatedText=q==='Hello.'?'سلام':'[Spanish]';
+    return route.fulfill({
+      status:200,contentType:'application/json',
+      body:JSON.stringify({responseStatus:200,responseData:{translatedText}})
+    });
+  });
+  await page.evaluate(()=>{window.pashtoVoice.speak=async()=>{};document.getElementById('demo-hello').click()});
+  await expect(page.locator('#result')).toHaveText('سلام');
+  await expect(page.locator('#replay')).toBeEnabled();
+  await page.evaluate(()=>document.getElementById('demo-water').click());
+  await expect(page.locator('#result')).toContainText('Translation unavailable');
+  await expect(page.locator('#replay')).toBeDisabled();
+  await expect(page.locator('#status')).toContainText('invalid placeholder');
+});
+
+test('a slow previous translation cannot overwrite a newer sentence',async ({page})=>{
+  await page.route('https://api.mymemory.translated.net/**',async route=>{
+    const q=new URL(route.request().url()).searchParams.get('q');
+    if(q==='Hello.')await new Promise(r=>setTimeout(r,180));
+    return route.fulfill({
+      status:200,contentType:'application/json',
+      body:JSON.stringify({responseStatus:200,responseData:{translatedText:q==='Hello.'?'سلام':'اوبه'}})
+    });
+  });
+  await page.evaluate(async()=>{
+    window.pashtoVoice.speak=async()=>{};
+    const older=window.pashtoApp.demo('Hello.','en');
+    const newer=window.pashtoApp.demo('I need water.','en');
+    await Promise.all([older,newer]);
+  });
+  await expect(page.locator('#result')).toHaveText('اوبه');
+  await expect(page.locator('#original')).toHaveText('I need water.');
+});
+
+test('Pashto recording does not replace the shared replay handler',async ({page})=>{
+  const previous=await page.evaluate(()=>document.getElementById('replay').onclick.toString());
+  expect(previous).toContain('lastSpeech');
+  const controller=await page.evaluate(()=>Object.keys(window.pashtoApp));
+  expect(controller).toEqual(expect.arrayContaining(['begin','process','fail','demo']));
+});
+
+test('failed translation cannot leave pictures that look like a successful result',async ({page})=>{
+ await page.evaluate(()=>{
+  const original=document.getElementById('original');
+  original.textContent='The ladder is outside.';
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='زینه';
+ });
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(1);
+ await page.evaluate(()=>{
+  const result=document.getElementById('result');
+  result.removeAttribute('lang');
+  result.textContent='Translation unavailable / ژباړه نشته';
+ });
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(0);
+ await expect(page.locator('#picture-column .picture-stack')).toContainText('له ژباړې وروسته');
 });

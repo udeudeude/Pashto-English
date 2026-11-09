@@ -3,91 +3,187 @@
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#16283b;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:22px 16px 50px}h1{font-size:1.5rem;margin:0 0 8px}p{line-height:1.45}.muted{color:#536578}.panel{background:white;border:1px solid #dce3e9;border-radius:20px;padding:20px;margin:18px 0}button{font:inherit;cursor:pointer;border:0;border-radius:18px;padding:18px;min-height:76px}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.english{background:#dbe9ff;color:#173f85}.pashto{background:#d8f3e2;color:#125b35}.choices button{font-size:1.35rem;font-weight:750}.choices small{display:block;font-size:.78rem;margin-top:6px}#status{font-weight:650;min-height:3em}#result{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.3rem;min-height:3em}#original{white-space:pre-wrap;overflow-wrap:anywhere}#replay{width:100%;background:#1c3853;color:white}#replay:disabled{background:#9aa6b0}details{margin-top:18px}summary{cursor:pointer}#capabilities{line-height:1.6}footer{font-size:.85rem;color:#526477}button:focus-visible{outline:3px solid #c45c10;outline-offset:3px}
 #test-pashto-voice{width:100%;min-height:54px;background:#23537e;color:white;margin-top:12px}
+.practice-buttons{display:grid;gap:8px}.practice-buttons button{min-height:48px;padding:10px;background:#e3ecf5;color:#172f4a;text-align:left;border-radius:10px}
 </style></head><body><main><h1>Pashto ↔ English / پښتو ↔ انګلیسي</h1><p class="muted">Choose the spoken language. Experimental voice translator. / د خبرې ژبه وټاکئ. دا ازمایښتي غږیز ژباړن دی.</p>
 <section class="panel"><div class="choices"><button id="en" class="english">🎙 English<small>Speak English / په انګلیسي خبرې وکړئ</small></button><button id="ps" class="pashto" lang="ps" dir="rtl">🎙 پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small></button></div><p id="status" role="status" aria-live="polite">Checking speech support… / د غږ ملاتړ کتل کېږي…</p></section>
 <section class="panel"><p class="muted">Translation / ژباړه</p><div id="result" aria-live="polite">Nothing translated yet. / لا ژباړه نشته.</div><button id="replay" disabled>▶ Replay / بیا واورئ</button><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
-<details class="panel"><summary>Compatibility and privacy / سازګاري او محرمیت</summary><p id="capabilities"></p><p>Speech recognition and translation may use online providers. Avoid confidential or urgent conversations. Pashto voice output is experimental. / د غږ پېژندنه او ژباړه ښايي له انلاین خدمتونو کار واخلي. په محرمو او بېړنیو خبرو کې دا مه کاروئ. د پښتو غږ لا په ډېرو تلیفونونو کې کار نه کوي.</p><button type="button" id="test-pashto-voice">▶ Test Pashto voice / د پښتو غږ وازمویئ</button></details>
+<details class="panel" id="self-test"><summary>Try without another speaker / د بل ویونکي پرته ازموینه</summary><p class="muted">These examples test the translation service and speech playback without the microphone. Automated translations may be wrong. / دا بېلګې له مایکروفون پرته ژباړه او غږ ازمويي. اتومات ژباړې کېدای شي ناسمې وي.</p><div class="practice-buttons"><button type="button" id="demo-hello">Example 1 / لومړۍ بېلګه: Hello.</button><button type="button" id="demo-water">Example 2 / دوهمه بېلګه: I need water.</button><button type="button" id="demo-bathroom">Example 3 / درېیمه بېلګه: Where is the bathroom?</button><button type="button" id="demo-pashto">Pashto example / د پښتو بېلګه: سلام، تاسو څنګه یاست؟</button></div></details>
+<details class="panel"><summary>Compatibility and privacy / سازګاري او محرمیت</summary><p id="capabilities"></p><p>Speech recognition and translation may use online providers. Avoid confidential or urgent conversations. Pashto voice output is experimental. / د غږ پېژندنه او ژباړه ښايي له انلاین خدمتونو کار واخلي. په محرمو او بېړنیو خبرو کې دا مه کاروئ. د پښتو غږ ازمایښتي دی او لا باید په تلیفون وازمویل شي.</p><button type="button" id="test-pashto-voice">▶ Test Pashto voice / د پښتو غږ وازمویئ</button></details>
 <footer>Free experimental prototype. Pashto speakers must verify accuracy. The website does not intentionally save conversations. / وړیا ازمایښتي بڼه. د پښتو ویونکي باید د ژباړې سموالی وڅېړي. دا وېبپاڼه خبرې په قصدي ډول نه ساتي.</footer></main>
 <script>
 'use strict';
+// One controller owns both speaking directions, replay and error state.
 const $=id=>document.getElementById(id);
 const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-let active=null,lastSpeech=null;
+let active=null,lastSpeech=null,requestSeq=0;
 const bilingualStatus=s=>{
- const hints=[
- ['no detectable Pashto speaking voice','په تلیفون کې د پښتو غږ نشته.'],
- ['no Pashto voice is installed','په تلیفون کې د پښتو غږ نشته.'],
- ['Listening for Pashto','پښتو خبرې اورېدل کېږي…'],
- ['Listening to Pashto','پښتو خبرې اورېدل کېږي…'],
- ['Listening for English','انګلیسي خبرې اورېدل کېږي…'],
- ['Preparing Pashto recognition','د پښتو پېژندنه چمتو کېږي…'],
- ['Recognizing Pashto','پښتو خبرې پېژندل کېږي…'],
- ['Translating','ژباړه روانه ده…'],
- ['Translation ready','ژباړه چمتو ده.'],
- ['English translation ready','ژباړه چمتو ده.'],
- ['error','ستونزه رامنځته شوه.'],
- ['unavailable','ستونزه رامنځته شوه.'],
- ['failed','ستونزه رامنځته شوه.'],
- ['Ready','چمتو دی.']
+ if(s.includes(' / '))return s;
+ const translations=[
+  ['Recording','د غږ ثبتول'],
+  ['Listening for Pashto','پښتو خبرې اورېدل کېږي…'],
+  ['Listening to Pashto','پښتو خبرې اورېدل کېږي…'],
+  ['Listening for English','انګلیسي خبرې اورېدل کېږي…'],
+  ['Translating','ژباړه روانه ده…'],
+  ['Translation text is ready','د ژباړې متن چمتو دی.'],
+  ['Translation ready','ژباړه چمتو ده.'],
+  ['Preparing Pashto recognition','د پښتو پېژندنه چمتو کېږي…'],
+  ['Recognizing Pashto','پښتو خبرې پېژندل کېږي…'],
+  ['English translation ready','انګلیسي ژباړه چمتو ده.'],
+  ['Audio playback failed','د غږ غږول ناکام شول.'],
+  ['No recognizable','خبرې ونه پېژندل شوې.'],
+  ['not recognized clearly','خبرې سمې ونه پېژندل شوې.'],
+  ['error','ستونزه رامنځته شوه.'],
+  ['unavailable','خدمت نشته.'],
+  ['failed','ستونزه رامنځته شوه.'],
+  ['could not','عملیات ترسره نه شول.'],
+  ['not supported','ملاتړ نه لري.'],
+  ['Ready','چمتو دی.']
  ];
- const hint=hints.find(item=>s.toLowerCase().includes(item[0].toLowerCase()));
- return s+' / '+(hint?.[1]||'خبرتیا');
+ const item=translations.find(([english])=>s.toLowerCase().includes(english.toLowerCase()));
+ return s+' / '+(item?.[1]||'خبرتیا');
 };
 window.pashtoStatus=s=>{$('status').textContent=bilingualStatus(s)};
 const setStatus=window.pashtoStatus;
 const voices=()=>window.speechSynthesis?.getVoices()||[];
-const voiceFor=lang=>voices().find(v=>v.lang.toLowerCase().startsWith(lang));
+const voiceFor=lang=>voices().find(v=>v.lang?.toLowerCase().startsWith(lang));
 function capabilityReport(){
- const recognition=!!Recognition, synthesis=!!window.speechSynthesis, pashto=!!voiceFor('ps');
- $('capabilities').textContent='Speech recognition / غږ پېژندنه: '+(recognition?'browser available / شته':'unavailable / نشته')+'. Free Pashto voice / وړیا پښتو غږ: experimental, first-use download / ازمایښتي، لومړی ښکته کېږي. English voice / انګلیسي غږ: '+(!!voiceFor('en')?'yes / هو':'no / نه')+'. Pashto recognition requires real-world testing / د پښتو غږ پېژندنه باید وازمویل شي.';
- $('en').disabled=!recognition;$('ps').disabled=!recognition;
- if(!recognition)setStatus('This browser does not provide speech recognition. Try Chrome on Android or another supported browser.');
- else if(!pashto)setStatus('Tap Test Pashto Voice to test free offline-capable speech after download. Pronunciation is experimental.');
- else setStatus('Ready. Tap a microphone.');
+ const browserEnglish=!!Recognition;
+ const pashtoRecording=!!navigator.mediaDevices?.getUserMedia&&!!window.MediaRecorder;
+ const englishVoice=!!voiceFor('en');
+ $('capabilities').textContent=
+  'English browser recognition / د انګلیسي غږ پېژندنه: '+(browserEnglish?'available / شته':'unavailable / نشته')+
+  '. Pashto recording / د پښتو غږ ثبتول: '+(pashtoRecording?'available / شته':'unavailable / نشته')+
+  '. Pashto speech / د پښتو غږیزه وینا: experimental local engine / ازمایښتي ځايي سیستم'+
+  '. English voice / د انګلیسي غږ: '+(englishVoice?'available / شته':'unavailable / نشته')+'.';
+ $('en').disabled=!browserEnglish;
+ $('ps').disabled=!pashtoRecording;
+ // A change in system voices must never interrupt active listening or translation.
+ if(requestSeq!==0)return;
+ if(browserEnglish||pashtoRecording)setStatus('Ready. Speak or open the self-test.');
+ else setStatus('Microphone recognition is unavailable. You can try the self-test.');
 }
 function speak(text,lang){
  if(lang==='ps'){
-  if(!window.pashtoVoice){setStatus('Pashto speech engine has not loaded. Please try Replay.');return}
-  window.pashtoVoice.speak(text).catch(()=>{});
-  return;
+  if(!window.pashtoVoice){setStatus('Pashto voice engine unavailable. Tap Replay to retry.');return}
+  return window.pashtoVoice.speak(text).catch(()=>{});
  }
- if(!window.speechSynthesis){setStatus('Speech playback is unavailable.');return}
- const voice=voiceFor(lang);
- if(lang==='ps'&&!voice){setStatus('Translation shown, but no Pashto voice is installed on this device.');return}
+ if(!window.speechSynthesis){setStatus('English speech playback is unavailable.');return}
  window.speechSynthesis.cancel();
- const utterance=new SpeechSynthesisUtterance(text);utterance.lang=lang;utterance.rate=.9;if(voice)utterance.voice=voice;
- utterance.onerror=()=>setStatus('Audio playback failed.');
+ const voice=voiceFor('en');
+ const utterance=new SpeechSynthesisUtterance(text);
+ utterance.lang='en-US';utterance.rate=.9;
+ if(voice)utterance.voice=voice;
+ utterance.onerror=()=>setStatus('Audio playback failed. Tap Replay to retry.');
  window.speechSynthesis.speak(utterance);
 }
 async function translate(text,source,target){
- const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
- const response=await fetch(url);if(!response.ok)throw Error('Translation service unavailable ('+response.status+').');
- const data=await response.json();if(data.responseStatus!==200||!data.responseData?.translatedText)throw Error('Translation failed or daily free quota reached.');
- const candidate=String(data.responseData.translatedText).trim();
- if(!candidate||/^\s*\[[^\]]+\]\s*$/u.test(candidate))throw Error('Invalid translation placeholder. Please try speaking again.');
- if(target==='ps'&&!/[\u0600-\u06ff]/u.test(candidate))throw Error('Pashto text was not returned by translation.');
- return candidate;
+ const abort=new AbortController();
+ const deadline=setTimeout(()=>abort.abort(),20000);
+ try{
+  const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
+  const response=await fetch(url,{signal:abort.signal});
+  if(!response.ok)throw Error('Translation service unavailable ('+response.status+').');
+  const data=await response.json();
+  if(data.responseStatus!==200||!data.responseData?.translatedText)
+   throw Error('Translation failed or free usage limit reached.');
+  const candidate=String(data.responseData.translatedText).trim();
+  if(!candidate||/^\s*\[[^\]]+\]\s*$/u.test(candidate)||/^\s*\([^)]+\)\s*$/u.test(candidate))
+   throw Error('Translation service returned an invalid placeholder.');
+  if(target==='ps'&&!/[\u0600-\u06ff]/u.test(candidate))
+   throw Error('The service did not return Pashto script.');
+  if(target==='en'&&/[\u0600-\u06ff]/u.test(candidate))
+   throw Error('The service did not return English text.');
+  return candidate;
+ }catch(err){
+  if(err.name==='AbortError')throw Error('The translation service did not respond in time.');
+  throw err;
+ }finally{clearTimeout(deadline)}
+}
+function clearTranslation(){
+ lastSpeech=null;
+ $('replay').disabled=true;
+ $('original').textContent='';
+ $('result').removeAttribute('lang');
+ $('result').removeAttribute('dir');
+ $('result').textContent='Waiting for speech… / د خبرو انتظار…';
+ window.speechSynthesis?.cancel();
+ window.pashtoVoice?.stop();
+}
+function begin(source){
+ const session=++requestSeq;
+ if(active){try{active.abort()}catch(e){try{active.stop()}catch(_){} }active=null}
+ if(source==='en')window.pashtoVoice?.unlock();
+ clearTranslation();
+ return session;
+}
+function fail(message,session){
+ if(session!==requestSeq)return;
+ lastSpeech=null;$('replay').disabled=true;
+ $('result').removeAttribute('lang');
+ $('result').textContent='Translation unavailable / ژباړه نشته';
+ setStatus(message);
+}
+async function processTranscript(heard,source,session){
+ if(session!==requestSeq)return false;
+ const transcript=String(heard||'').trim();
+ if(!transcript||/^\s*\[[^\]]+\]\s*$/u.test(transcript)||
+      (source==='ps'&&!/[\u0600-\u06ff]/u.test(transcript))){
+  fail('Speech was not recognized clearly. Please try again.',session);
+  return false;
+ }
+ $('original').textContent=transcript;
+ $('original').lang=source;
+ $('original').dir=source==='ps'?'rtl':'ltr';
+ const target=source==='ps'?'en':'ps';
+ setStatus('Translating…');
+ try{
+  const output=await translate(transcript,source,target);
+  if(session!==requestSeq)return false;
+  $('result').textContent=output;
+  $('result').lang=target;
+  $('result').dir=target==='ps'?'rtl':'ltr';
+  lastSpeech={text:output,lang:target};
+  $('replay').disabled=false;
+  setStatus('Translation text is ready. Audio is experimental.');
+  speak(output,target);
+  return true;
+ }catch(err){
+  fail(err?.message||'Translation failed.',session);
+  return false;
+ }
 }
 function start(lang){
- if(lang==='en')window.pashtoVoice?.unlock();
  if(!Recognition)return;
- if(active){active.stop();active=null}
- window.speechSynthesis?.cancel();
- const rec=new Recognition();active=rec;rec.lang=lang==='ps'?'ps-AF':'en-US';rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
+ const session=begin(lang);
+ const rec=new Recognition();active=rec;
+ rec.lang=lang==='ps'?'ps-AF':'en-US';
+ rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
  setStatus(lang==='ps'?'Listening for Pashto…':'Listening for English…');
- rec.onresult=async e=>{
-  const heard=e.results[0][0].transcript;const target=lang==='ps'?'en':'ps';
-  if(!heard||/^\s*\[[^\]]+\]\s*$/u.test(heard)){setStatus('Speech recognition returned an invalid result. Please try again.');return}
-  $('original').textContent=heard;setStatus('Translating…');
-  try{const output=await translate(heard,lang,target);$('result').textContent=output;$('result').lang=target;lastSpeech={text:output,lang:target};$('replay').disabled=false;setStatus('Translation ready.');speak(output,target)}
-  catch(err){setStatus(err.message);$('result').textContent='Translation unavailable.'}
- };
- rec.onerror=e=>setStatus('Recognition error: '+e.error+'. This browser may not support spoken '+(lang==='ps'?'Pashto.':'English.'));
+ rec.onresult=event=>{if(session===requestSeq)processTranscript(event.results?.[0]?.[0]?.transcript,lang,session)};
+ rec.onerror=event=>fail('Recognition error: '+event.error+'. Please try again.',session);
  rec.onend=()=>{if(active===rec)active=null};
- try{rec.start()}catch(err){setStatus('Microphone could not start: '+err.message)}
+ try{rec.start()}catch(err){fail('Microphone could not start: '+err.message,session)}
 }
-$('en').onclick=()=>start('en');$('ps').onclick=()=>start('ps');
-$('replay').onclick=()=>{if(lastSpeech){if(lastSpeech.lang==='ps')window.pashtoVoice?.unlock();speak(lastSpeech.text,lastSpeech.lang)}};
+function demo(text,source){
+ const session=begin(source);
+ return processTranscript(text,source,session);
+}
+window.pashtoApp={begin,process:processTranscript,fail,demo};
+$('en').onclick=()=>start('en');
+$('replay').onclick=()=>{
+ if(!lastSpeech)return;
+ if(lastSpeech.lang==='ps')window.pashtoVoice?.unlock();
+ speak(lastSpeech.text,lastSpeech.lang);
+};
+for(const [id,source,phrase] of [
+ ['demo-hello','en','Hello.'],
+ ['demo-water','en','I need water.'],
+ ['demo-bathroom','en','Where is the bathroom?'],
+ ['demo-pashto','ps','سلام، تاسو څنګه یاست؟']
+]){
+ const button=$(id);
+ if(button)button.addEventListener('click',()=>demo(phrase,source));
+}
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=capabilityReport;
 capabilityReport();
 </script><script type="module" src="./visual-vocabulary.js?v=9"></script><script defer src="./stability.js?v=1"></script><script defer src="./pashto-voice.js?v=1"></script><script type="module" src="./pashto-recognition.js?v=2"></script></body></html>

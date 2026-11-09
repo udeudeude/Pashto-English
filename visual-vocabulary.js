@@ -80,10 +80,11 @@ const main=document.querySelector('main');
 main.classList.add('visual-layout');
 const aside=document.createElement('aside');
 aside.id='picture-column';
-aside.setAttribute('aria-label','Illustrations in English word order');
+aside.className='picture-column';
+aside.setAttribute('aria-label','Illustrations in English word order / انځورونه د انګلیسي کلمو په ترتیب');
 const heading=document.createElement('h2');heading.textContent='Pictures / انځورونه';heading.className='picture-heading';
 const stack=document.createElement('div');stack.className='picture-stack';
-const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source');
+const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source / د انځور سرچینه');
 for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji / ایموجي']]){
  const option=document.createElement('option');option.value=value;option.textContent=label;picker.append(option);
 }
@@ -116,8 +117,11 @@ const verifiedSearch={ladder:'ladder',jar:'jar',shelf:null,cashew:null};
 const iconCache=new Map();
 let renderVersion=0;
 function englishText(){
- if(result.textContent==='Nothing translated yet.'||result.textContent==='Translation unavailable.')return '';
- return result.lang==='en'?result.textContent:original.textContent;
+ // Do not show apparently verified pictures when translation is missing or failed.
+ // The source transcript may exist even after a translation error.
+ if(result.getAttribute('lang')==='en')return result.textContent;
+ if(result.getAttribute('lang')==='ps')return original.textContent;
+ return '';
 }
 function matches(){
  const tokens=englishText().toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
@@ -163,7 +167,7 @@ function draw(){
  stack.replaceChildren();
  const items=matches();
  if(!items.length){
-  const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation.';p.style.fontSize='.8rem';stack.append(p);return;
+  const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation. / انځورونه له ژباړې وروسته ښکاري.';p.style.fontSize='.8rem';stack.append(p);return;
  }
  for(const item of items){
   const card=document.createElement('div');card.className='picture-card';
