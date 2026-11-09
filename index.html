@@ -57,7 +57,10 @@ async function translate(text,source,target){
  const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
  const response=await fetch(url);if(!response.ok)throw Error('Translation service unavailable ('+response.status+').');
  const data=await response.json();if(data.responseStatus!==200||!data.responseData?.translatedText)throw Error('Translation failed or daily free quota reached.');
- return data.responseData.translatedText;
+ const candidate=String(data.responseData.translatedText).trim();
+ if(!candidate||/^\s*\[[^\]]+\]\s*$/u.test(candidate))throw Error('Invalid translation placeholder. Please try speaking again.');
+ if(target==='ps'&&!/[\u0600-\u06ff]/u.test(candidate))throw Error('Pashto text was not returned by translation.');
+ return candidate;
 }
 function start(lang){
  if(!Recognition)return;
@@ -67,6 +70,7 @@ function start(lang){
  setStatus(lang==='ps'?'Listening for Pashto…':'Listening for English…');
  rec.onresult=async e=>{
   const heard=e.results[0][0].transcript;const target=lang==='ps'?'en':'ps';
+  if(!heard||/^\s*\[[^\]]+\]\s*$/u.test(heard)){setStatus('Speech recognition returned an invalid result. Please try again.');return}
   $('original').textContent=heard;setStatus('Translating…');
   try{const output=await translate(heard,lang,target);$('result').textContent=output;$('result').lang=target;lastSpeech={text:output,lang:target};$('replay').disabled=false;setStatus('Translation ready.');speak(output,target)}
   catch(err){setStatus(err.message);$('result').textContent='Translation unavailable.'}
