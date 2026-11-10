@@ -27,15 +27,17 @@ test('picture controls render; rejection grays out; alternatives open', async ({
     result.textContent='زه زینې ته اړتیا لرم';
   });
   const cards=page.locator('#picture-column .picture-card');
-  await expect(cards).toHaveCount(4);
-  await expect(cards.nth(0)).toContainText('ladder');
-  await expect(cards.nth(1)).toContainText('cashew');
-  await expect(cards.nth(2)).toContainText('jar');
-  await expect(cards.nth(3)).toContainText('shelf');
-  await expect(page.locator('.picture-actions button')).toHaveCount(8);
-  await cards.nth(1).locator('.picture-actions button').first().click();
-  await expect(cards.nth(1)).toHaveClass(/picture-rejected/);
-  await cards.nth(1).locator('.picture-actions button').nth(1).click();
+  await expect(cards).toHaveCount(6);
+  await expect(cards.nth(0)).toContainText('need');
+  await expect(cards.nth(1)).toContainText('ladder');
+  await expect(cards.nth(2)).toContainText('reach');
+  await expect(cards.nth(3)).toContainText('cashew');
+  await expect(cards.nth(4)).toContainText('jar');
+  await expect(cards.nth(5)).toContainText('shelf');
+  await expect(page.locator('.picture-actions button')).toHaveCount(12);
+  await cards.nth(3).locator('.picture-actions button').first().click();
+  await expect(cards.nth(3)).toHaveClass(/picture-rejected/);
+  await cards.nth(3).locator('.picture-actions button').nth(1).click();
   await expect(page.locator('.picture-sheet')).toBeVisible();
   await expect(page.locator('.picture-sheet h2')).toContainText('cashew');
   await expect(page.locator('.picture-sheet-grid')).toContainText('Same word');
@@ -208,7 +210,8 @@ test('real image alternatives are offered for same, related and similar-sounding
   const result=document.getElementById('result');
   result.lang='ps';result.textContent='زه یوې طاقچې ته اړتیا لرم';
  });
- const card=page.locator('#picture-column .picture-card');
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'shelf'});
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(2);
  await expect(card).toHaveCount(1);
  await expect(card.locator('img')).toHaveCount(1);
  await expect.poll(()=>card.locator('img').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
@@ -241,7 +244,8 @@ test('a cashew is never silently illustrated as a peanut',async({page})=>{
   const result=document.getElementById('result');
   result.lang='ps';result.textContent='کاجو';
  });
- const card=page.locator('#picture-column .picture-card');
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'cashew'});
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(2);
  await expect(card).toHaveCount(1);
  await expect(card.locator('.word')).toHaveText('cashew');
  await expect(card.locator('img')).toHaveCount(0);
@@ -250,4 +254,52 @@ test('a cashew is never silently illustrated as a peanut',async({page})=>{
  const related=page.locator('.picture-choice-group').nth(1);
  await expect(related).toContainText('peanut');
  await expect(page.locator('.picture-sheet h2')).toContainText('cashew');
+});
+
+
+test('the English and Pashto headings are on separate physical lines',async({page})=>{
+ const lines=page.locator('h1.app-title span');
+ await expect(lines).toHaveCount(2);
+ await expect(lines.nth(0)).toHaveText('Pashto ↔ English');
+ await expect(lines.nth(1)).toHaveText('پښتو ↔ انګلیسي');
+ await expect(lines.nth(1)).toHaveAttribute('dir','rtl');
+ const bounds=await lines.evaluateAll(nodes=>nodes.map(n=>({top:n.getBoundingClientRect().top,bottom:n.getBoundingClientRect().bottom})));
+ expect(bounds[1].top).toBeGreaterThanOrEqual(bounds[0].bottom);
+});
+
+test('previously unknown picturable words receive actual pictures in sentence order',async({page})=>{
+ const svg='<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64"/></svg>';
+ await page.route('https://api.arasaac.org/**',route=>{
+  const word=decodeURIComponent(route.request().url().split('/').pop());
+  const ids={telescope:6031,observe:6032,star:6033};
+  return route.fulfill({status:200,contentType:'application/json',
+   body:JSON.stringify(ids[word]?[{_id:ids[word],keywords:[{keyword:word}]}]:[])});
+ });
+ await page.route('https://static.arasaac.org/**',route=>route.fulfill({status:200,contentType:'image/svg+xml',body:svg}));
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need a telescope to observe the stars.';
+  const result=document.getElementById('result');result.lang='ps';result.textContent='په پښتو کې د ازموینې ژباړه';
+ });
+ const cards=page.locator('#picture-column .picture-card');
+ await expect.poll(async()=>cards.count()).toBe(4);
+ await expect.poll(async()=>cards.locator('.word').allTextContents()).toEqual(['need','telescope','observe','star']);
+ for(const word of ['telescope','observe','star']){
+  const card=cards.filter({hasText:word});
+  await expect(card.locator('img')).toHaveCount(1);
+  await expect.poll(()=>card.locator('img').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+ }
+});
+
+test('do not invent icons for purely grammatical words or unrelated search results',async({page})=>{
+ await page.route('https://api.arasaac.org/**',route=>route.fulfill({
+  status:200,contentType:'application/json',
+  body:JSON.stringify([{_id:314,keywords:[{keyword:'peanut'}]}])
+ }));
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='We will carry the mysterious objects for you.';
+  const result=document.getElementById('result');result.lang='ps';result.textContent='د ازموینې ژباړه';
+ });
+ await expect(page.locator('#picture-column .picture-card').filter({hasText:'carry'})).toHaveCount(1);
+ await expect(page.locator('#picture-column .picture-card').filter({hasText:'mysterious'})).toHaveCount(0);
+ await expect(page.locator('#picture-column .picture-card').filter({hasText:'you'})).toHaveCount(0);
 });
