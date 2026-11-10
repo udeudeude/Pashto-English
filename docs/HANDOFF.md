@@ -1,3 +1,17 @@
+## Current iPhone privacy/pictures fixes (PR #10, IN REVIEW)
+
+Branch `fix/microphone-and-picture-source-reliability`: https://github.com/udeudeude/Pashto-English/pull/10
+
+An actual iPhone screenshot showed persistent microphone use, oversized picture controls over the illustration, an apparently single-source picture dropdown, and Iconify art even with ARASAAC selected.
+
+- The English speech-recognition session now aborts explicitly on a final result, second microphone tap, `visibilitychange` (hidden), and `pagehide`, invalidating any late transcript. Pashto has its own track-stopping page lifecycle handling from PR #8. Voice synthesis is a separate process and should not capture the microphone.
+- Picture card controls moved to the same word-caption line. Tiny visual glyphs retain an enlarged hit region; image area remains unobstructed.
+- Source selector removed. `picture-catalog.js` queries ARASAAC and Iconify automatically, reserves results from both, applies exact English label and noun/verb sense ranking, and exposes ARASAAC failures visibly rather than silently substituting.
+- Real ARASAAC probe confirmed HTTP 200 responses for `look`, `box`, and `book`, including valid 300-pixel image responses. The additional live WebKit/Chromium test loaded real ARASAAC and Iconify images. No speaker recordings or private utterances are involved.
+- Added tests for English microphone cleanup, simultaneous picture sources, provider failures, and caption-row geometry.
+
+**Review/merge gate:** Check the latest PR #10 runs (browser regression, Pashto voice, live service smoke) and any concurrent branch changes before merging; then verify GitHub Pages deploy. Physical iPhone Safari testing is still mandatory. The iOS orange microphone indicator could also originate with another app: check Control Center's recent microphone user if it persists when Safari is closed. Do not claim OS-level microphone hardware has been verified by simulated browser tests.
+
 # Pashto-English: current engineering handoff
 
 Updated: 2026-11-09
