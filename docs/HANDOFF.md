@@ -1,6 +1,6 @@
-## Current iPhone privacy/pictures fixes (PR #10, IN REVIEW)
+## iPhone microphone and picture-source fixes (PR #10, MERGED)
 
-Branch `fix/microphone-and-picture-source-reliability`: https://github.com/udeudeude/Pashto-English/pull/10
+Branch `fix/microphone-and-picture-source-reliability` (merged): https://github.com/udeudeude/Pashto-English/pull/10 . Squash commit `28a4b80f82781267a13b3708999c4ce29dac265d`.
 
 An actual iPhone screenshot showed persistent microphone use, oversized picture controls over the illustration, an apparently single-source picture dropdown, and Iconify art even with ARASAAC selected.
 
@@ -10,7 +10,7 @@ An actual iPhone screenshot showed persistent microphone use, oversized picture 
 - Real ARASAAC probe confirmed HTTP 200 responses for `look`, `box`, and `book`, including valid 300-pixel image responses. The additional live WebKit/Chromium test loaded real ARASAAC and Iconify images. No speaker recordings or private utterances are involved.
 - Added tests for English microphone cleanup, simultaneous picture sources, provider failures, and caption-row geometry.
 
-**Review/merge gate:** Check the latest PR #10 runs (browser regression, Pashto voice, live service smoke) and any concurrent branch changes before merging; then verify GitHub Pages deploy. Physical iPhone Safari testing is still mandatory. The iOS orange microphone indicator could also originate with another app: check Control Center's recent microphone user if it persists when Safari is closed. Do not claim OS-level microphone hardware has been verified by simulated browser tests.
+**Validation:** PR #10 head `ff317f7a` passed 64 mobile Chromium/WebKit browser tests, Pashto non-silent voice generation, and two real-provider smoke jobs. Real Chromium and WebKit downloaded ARASAAC pictogram 6564 for `look` and displayed it in the main column and alternatives next to Iconify choices. Merged to `main` as `28a4b80f`. Verify GitHub Pages deployment and ask user to retest physical Safari. The iOS orange microphone indicator could also come from another app: Control Center can identify the recent microphone user. Browser tests cannot certify physical microphone hardware release.
 
 # Pashto-English: current engineering handoff
 
