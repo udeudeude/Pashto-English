@@ -193,8 +193,9 @@ function enhance(card,key){
  alternatives.onclick=()=>openOptions(card);
  actions.append(wrong,alternatives);
  card.append(actions);
+ const wasRejected=rejected.has(key);
  if(chosen.has(label))apply(card,chosen.get(label));
- if(rejected.has(key))setRejected(card,true,false);
+ if(wasRejected)setRejected(card,true,false);
  else updateRejectButton(card);
  // Safari must be allowed to scroll the left rail. Touch handlers are passive:
  // do not preventDefault on the card or intercept vertical scrolling.
