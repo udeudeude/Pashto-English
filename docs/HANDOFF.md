@@ -16,7 +16,7 @@ An actual iPhone screenshot showed persistent microphone use, oversized picture 
 
 ## iPhone persistent microphone hotfix (pull request #11)
 
-Branch: `fix/ios-microphone-privacy-lifecycle`, pull request: https://github.com/udeudeude/Pashto-English/pull/11
+Branch: `fix/ios-microphone-privacy-lifecycle` (merged), pull request: https://github.com/udeudeude/Pashto-English/pull/11; merge commit `cb9e8028bb70bb0651b5c3244361036538941144`.
 
 A physical-iPhone user **confirmed that the app** was responsible for continued microphone use after Safari left the foreground, despite the earlier PR #10 fix. The investigation found published WebKit bugs (including [321436](https://bugs.webkit.org/show_bug.cgi?id=321436) and [speech-api #96](https://github.com/WebAudio/web-speech-api/issues/96)) where Safari's built-in speech recognizer can hang without firing onresult/onerror/onend or leave audio sessions active. Do not keep relying on Safari Web Speech for English input on Apple mobile devices.
 
@@ -27,7 +27,7 @@ Changes in this branch:
 4. Background cancellation invalidates pending requests **without unlocking output audio** and is safe if several lifecycle notifications fire. Both buttons reset their state.
 5. Regression tests cover local English routing, track release on blur/pagehide/hidden, permission timing, English/Pashto worker languages, failure recovery, and native browser recording timeouts. Real-model browser tests exercise both languages, though not real phone microphone hardware.
 
-**Status:** Review the latest pull request checks and merge only after all suites pass. Separately confirm on a *physical* iPhone that the orange microphone indicator goes away when recording ends and when Safari backgrounds. Browser emulation cannot guarantee operating-system audio-session behavior. The local speech model has first-use download, memory and performance costs, and accuracy remains unverified.
+**Status:** Merged after **72 passing mobile Chromium/WebKit tests**, all syntax/unit checks, and successful real multilingual Whisper execution for both English and Pashto in both browser engines (November 10, 2026). The local Pashto audio waveform test also passed. Physical iPhone microphone-indicator testing is **still unverified** and is the immediate next step. The first-use local model download, memory and performance costs remain real; speech accuracy remains unverified. GitHub Pages deployment should be confirmed independently.
 
 
 
