@@ -13,7 +13,8 @@ test('core interface is bilingual and does not await a speech-model download', a
   await expect(page.locator('#en')).toContainText('په انګلیسي خبرې وکړئ');
   await expect(page.locator('#ps')).toContainText('په پښتو خبرې وکړئ');
   await expect(page.locator('summary').first()).toContainText('اصلي خبرې');
-  await expect(page.locator('#picture-column .picture-heading')).toContainText('انځورونه');
+  await expect(page.locator('#picture-column .picture-heading')).toHaveCount(0);
+  await expect(page.locator('#picture-column')).toHaveAttribute('aria-label', /Illustrations in English word order/);
 });
 
 test('picture controls render; rejection grays out; alternatives open', async ({ page }) => {
