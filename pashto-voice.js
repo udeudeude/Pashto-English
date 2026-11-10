@@ -12,11 +12,8 @@
   let playVersion=0;
   const notify=(en,ps)=>{
     const text=en+' / '+ps;
-    if(window.pashtoStatus) {
-      // pashtoStatus is the existing English-to-bilingual status adapter.
-      // Writing directly avoids adding an incorrect second translation.
-      document.getElementById('status').textContent=text;
-    } else document.getElementById('status').textContent=text;
+    if(window.pashtoStatus)window.pashtoStatus(text);
+    else document.getElementById('status').textContent=text;
   };
   function unlock(){
     try {

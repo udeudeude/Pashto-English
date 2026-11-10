@@ -1,3 +1,15 @@
+## Picture-first, low-reading interface (pull request #13)
+
+User confirmed on a physical iPhone on November 10, 2026 that the microphone safety change in PR #11 **worked**. Do not revert to Safari's built-in iPhone English recognition.
+
+Current development branch: `ux/pictures-side-actions-minimal-reading`, pull request https://github.com/udeudeude/Pashto-English/pull/13.
+
+A new iPhone screenshot showed that placing ×/undo and more pictures controls beside the English word still crowded labels, making words such as "burrito" wrap oddly. The user requested **both controls on the right of the IMAGE**, with the word spanning the whole bottom of the card. This is implemented with a 2-column CSS grid in `stability.css` and the revised card structure in `stability.js`. Preserve scrollable image rail, control tap targets and rejection/undo logic.
+
+The user also insisted the **active communication interface must not look literacy-dependent**. The large bilingual introduction, idle picture-source chatter, empty-state picture explanation, and redundant speech-button imperatives are visually suppressed while remaining accessible as appropriate. Normal listening, processing, playing, and ready states are abbreviated to one compact bilingual indicator by `window.pashtoStatus`. Failure explanations remain fully displayed. `pashto-voice.js` now calls this shared status renderer rather than bypassing it. The translation and links/resources remain available; no new buttons were added.
+
+Regression tests check right-of-image controls, unbroken full-width captions, accessibility, status brevity, and error visibility. Check PR #13 automated browser and Pashto voice results before merging. Real phone confirmation of the new physical control position is still needed. No images were generated or edited.
+
 ## iPhone microphone and picture-source fixes (PR #10, MERGED)
 
 Branch `fix/microphone-and-picture-source-reliability` (merged): https://github.com/udeudeude/Pashto-English/pull/10 . Squash commit `28a4b80f82781267a13b3708999c4ce29dac265d`.

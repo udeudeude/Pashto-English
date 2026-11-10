@@ -77,7 +77,8 @@ test('bundled Pashto voice synthesizes speech on a user tap', async ({page}) => 
   await page.locator('summary').last().click();
   await expect(page.locator('#test-pashto-voice')).toBeVisible();
   await page.locator('#test-pashto-voice').click();
-  await expect(page.locator('#status')).toContainText('Playing Pashto translation', {timeout:90_000});
+  await expect(page.locator('#status')).toContainText('Playing / غږېږي', {timeout:90_000});
+  await expect(page.locator('#status')).toHaveAttribute('aria-label',/Playing Pashto translation/);
 });
 
 
@@ -396,13 +397,19 @@ test('picture action icons no longer consume a row below the illustration',async
  expect(sizes.buttons.every(b=>b.width<=28&&b.height<=28)).toBe(true);
  const alignment=await card.evaluate(el=>{
   const word=el.querySelector('.picture-caption .word').getBoundingClientRect();
-  const actions=el.querySelector('.picture-caption .picture-actions').getBoundingClientRect();
+  const actions=el.querySelector(':scope > .picture-actions').getBoundingClientRect();
   const image=el.querySelector(':scope > img, :scope > .emoji').getBoundingClientRect();
-  return {wordCenter:(word.top+word.bottom)/2,actionCenter:(actions.top+actions.bottom)/2,
-   imageBottom:image.bottom,actionsTop:actions.top};
+  return {word,actions,image,layout:getComputedStyle(el).display,
+   actionDirection:getComputedStyle(el.querySelector('.picture-actions')).flexDirection};
  });
- expect(Math.abs(alignment.wordCenter-alignment.actionCenter)).toBeLessThan(13);
- expect(alignment.actionsTop).toBeGreaterThanOrEqual(alignment.imageBottom-2);
+ expect(alignment.layout).toBe('grid');
+ expect(alignment.actionDirection).toBe('column');
+ // The two small buttons must be to the RIGHT, never on top of the image.
+ expect(alignment.actions.left).toBeGreaterThanOrEqual(alignment.image.right-2);
+ // The word must have the entire card width on the row below the image.
+ expect(alignment.word.top).toBeGreaterThanOrEqual(alignment.image.bottom-2);
+ expect(alignment.word.top).toBeGreaterThanOrEqual(alignment.actions.bottom-2);
+ expect(alignment.word.width).toBeGreaterThan(alignment.image.width);
 });
 
 test('vertical touch movement leaves rejection alone; diagonal gesture can reject',async({page})=>{
@@ -603,7 +610,7 @@ test('cancelling Pashto while translation is pending prevents late speech and Re
  await page.locator('#ps').click();
  await page.evaluate(()=>window.finishTranslation('Hello'));
  await expect(page.locator('#replay')).toBeDisabled();
- await expect(page.locator('#result')).toContainText('Waiting for speech');
+ await expect(page.locator('#result')).toHaveAttribute('aria-label',/Waiting for speech/);
  expect(await page.evaluate(()=>window.spokenAfterCancel)).toBe(0);
 });
 
@@ -630,6 +637,7 @@ test('all image sources are searched; ARASAAC and Iconify options coexist',async
  expect(sources).toEqual(expect.arrayContaining(['ARASAAC','Iconify']));
  await expect(page.locator('#picture-column select')).toHaveCount(0);
  await expect(page.locator('.picture-source-label')).toContainText('ARASAAC + Iconify');
+ await expect(page.locator('.picture-source-label')).toBeHidden();
  await page.evaluate(()=>{
   document.getElementById('original').textContent='Open the box';
   const result=document.getElementById('result');
@@ -652,6 +660,7 @@ test('ARASAAC failure is communicated, rather than silently presenting Iconify a
  await page.route('https://api.arasaac.org/**',route=>route.abort());
  await page.evaluate(async()=>{await window.pictureCatalog.find('ladder',{max:6})});
  await expect(page.locator('.picture-source-label')).toContainText('ARASAAC unavailable');
+ await expect(page.locator('.picture-source-label')).toBeVisible();
 });
 
 test('English recognition stops on background and discards a late transcript',async({page},testInfo)=>{
@@ -859,4 +868,52 @@ test('background cancellation does not unlock or resume speech playback',async({
  });
  expect(await page.evaluate(()=>window.unlockCount)).toBe(0);
  expect(await page.evaluate(()=>window.captureStats.stops)).toBe(1);
+});
+
+
+test('main communication controls require minimal reading and keep full accessibility labels',async({page})=>{
+ const intro=page.locator('main > .content-column > .screenreader-only').first();
+ await expect(intro).toContainText('Choose the spoken language');
+ expect(await intro.evaluate(el=>{
+  const style=getComputedStyle(el);
+  return style.position==='absolute'&&style.width==='1px'&&style.overflow==='hidden';
+ })).toBe(true);
+ const panel=page.locator('.speech-panel');
+ await expect(panel.locator('.choices button')).toHaveCount(2);
+ await expect(page.locator('#en')).toHaveAttribute('aria-label',/Speak English/);
+ await expect(page.locator('#ps')).toHaveAttribute('aria-label',/Speak Pashto/);
+ await expect(page.locator('#en small')).toBeHidden();
+ await expect(page.locator('#ps small')).toBeHidden();
+ await page.evaluate(()=>window.pashtoStatus('Playing Pashto translation. Speech is experimental. / د پښتو ژباړې غږ غږول کېږي. دا ازمایښتي دی.'));
+ await expect(page.locator('#status')).toHaveText('▶ Playing / غږېږي');
+ await expect(page.locator('#status')).toHaveAttribute('aria-label',/Speech is experimental/);
+ await page.evaluate(()=>window.pashtoStatus('Ready. Speak or open the self-test.'));
+ await expect(page.locator('#status')).toBeHidden();
+ await page.evaluate(()=>window.pashtoStatus('Microphone permission denied. / مایکروفون ته اجازه نه ده ورکړل شوې.'));
+ await expect(page.locator('#status')).toBeVisible();
+ await expect(page.locator('#status')).toHaveText(/Microphone permission denied/);
+});
+
+test('long English words retain full-width captions and controls remain right of pictures',async({page})=>{
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need medicine and a book';
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='د ازموينې ژباړه';
+ });
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'medicine'});
+ await expect(card).toHaveCount(1);
+ const geometry=await card.evaluate(el=>{
+  const art=el.querySelector(':scope > img, :scope > .emoji').getBoundingClientRect();
+  const controls=el.querySelector(':scope > .picture-actions').getBoundingClientRect();
+  const label=el.querySelector('.picture-caption').getBoundingClientRect();
+  return {
+   artRight:art.right,controlsLeft:controls.left,controlsBottom:controls.bottom,
+   labelTop:label.top,labelWidth:label.width,cardWidth:el.getBoundingClientRect().width,
+   word:el.querySelector('.word')?.textContent
+  };
+ });
+ expect(geometry.word).toBe('medicine');
+ expect(geometry.controlsLeft).toBeGreaterThanOrEqual(geometry.artRight-2);
+ expect(geometry.labelTop).toBeGreaterThanOrEqual(geometry.controlsBottom-2);
+ expect(geometry.labelWidth).toBeGreaterThan(geometry.cardWidth-15);
 });

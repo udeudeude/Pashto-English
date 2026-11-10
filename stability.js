@@ -197,8 +197,10 @@ function enhance(card,key){
  const labelRow=document.createElement('div');
  labelRow.className='picture-caption';
  const wordNode=card.querySelector('.word');
- labelRow.append(wordNode,actions);
- card.append(labelRow);
+ labelRow.append(wordNode);
+ // Controls run vertically beside the image, leaving the complete width
+ // below for the word. Do not shrink the label to make space for buttons.
+ card.append(actions,labelRow);
  const wasRejected=rejected.has(key);
  if(chosen.has(label))apply(card,chosen.get(label));
  if(wasRejected)setRejected(card,true,false);

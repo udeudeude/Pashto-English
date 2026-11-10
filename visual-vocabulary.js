@@ -92,8 +92,10 @@ sourceLabel.setAttribute('aria-live','polite');
 aside.append(heading,sourceLabel,stack);
 window.addEventListener('picture-source-state',event=>{
  const state=event.detail||{};
- sourceLabel.textContent=state.arasaac==='error'
-  ?'ARASAAC unavailable; showing Iconify / ARASAAC نه چلېږي؛ Iconify ښودل کېږي'
+ const failed=state.arasaac==='error';
+ sourceLabel.classList.toggle('picture-source-error',failed);
+ sourceLabel.textContent=failed
+  ?'ARASAAC unavailable / ARASAAC نه چلېږي'
   :'ARASAAC + Iconify / د انځور سرچینې';
 });
 const content=document.createElement('div');content.className='content-column';
@@ -225,7 +227,7 @@ function draw(){
  stack.replaceChildren();
  const items=matches();
  if(!items.length){
-  const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation. / انځورونه له ژباړې وروسته ښکاري.';p.style.fontSize='.8rem';stack.append(p);return;
+  const p=document.createElement('p');p.className='screenreader-only';p.textContent='Pictures appear after translation. / انځورونه له ژباړې وروسته ښکاري.';stack.append(p);return;
  }
  let dynamicRequests=0;
  for(const item of items){
