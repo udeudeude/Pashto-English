@@ -637,6 +637,7 @@ test('all image sources are searched; ARASAAC and Iconify options coexist',async
  expect(sources).toEqual(expect.arrayContaining(['ARASAAC','Iconify']));
  await expect(page.locator('#picture-column select')).toHaveCount(0);
  await expect(page.locator('.picture-source-label')).toContainText('ARASAAC + Iconify');
+ await expect(page.locator('.picture-source-label')).toBeHidden();
  await page.evaluate(()=>{
   document.getElementById('original').textContent='Open the box';
   const result=document.getElementById('result');
@@ -659,6 +660,7 @@ test('ARASAAC failure is communicated, rather than silently presenting Iconify a
  await page.route('https://api.arasaac.org/**',route=>route.abort());
  await page.evaluate(async()=>{await window.pictureCatalog.find('ladder',{max:6})});
  await expect(page.locator('.picture-source-label')).toContainText('ARASAAC unavailable');
+ await expect(page.locator('.picture-source-label')).toBeVisible();
 });
 
 test('English recognition stops on background and discards a late transcript',async({page},testInfo)=>{
@@ -872,7 +874,10 @@ test('background cancellation does not unlock or resume speech playback',async({
 test('main communication controls require minimal reading and keep full accessibility labels',async({page})=>{
  const intro=page.locator('main > .content-column > .screenreader-only').first();
  await expect(intro).toContainText('Choose the spoken language');
- await expect(intro).toBeHidden();
+ expect(await intro.evaluate(el=>{
+  const style=getComputedStyle(el);
+  return style.position==='absolute'&&style.width==='1px'&&style.overflow==='hidden';
+ })).toBe(true);
  const panel=page.locator('.speech-panel');
  await expect(panel.locator('.choices button')).toHaveCount(2);
  await expect(page.locator('#en')).toHaveAttribute('aria-label',/Speak English/);
@@ -891,11 +896,11 @@ test('main communication controls require minimal reading and keep full accessib
 
 test('long English words retain full-width captions and controls remain right of pictures',async({page})=>{
  await page.evaluate(()=>{
-  document.getElementById('original').textContent='The elephant eats a burrito';
+  document.getElementById('original').textContent='I need medicine and a book';
   const result=document.getElementById('result');
   result.lang='ps';result.textContent='د ازموينې ژباړه';
  });
- const card=page.locator('#picture-column .picture-card').filter({hasText:'burrito'});
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'medicine'});
  await expect(card).toHaveCount(1);
  const geometry=await card.evaluate(el=>{
   const art=el.querySelector(':scope > img, :scope > .emoji').getBoundingClientRect();
@@ -907,7 +912,7 @@ test('long English words retain full-width captions and controls remain right of
    word:el.querySelector('.word')?.textContent
   };
  });
- expect(geometry.word).toBe('burrito');
+ expect(geometry.word).toBe('medicine');
  expect(geometry.controlsLeft).toBeGreaterThanOrEqual(geometry.artRight-2);
  expect(geometry.labelTop).toBeGreaterThanOrEqual(geometry.controlsBottom-2);
  expect(geometry.labelWidth).toBeGreaterThan(geometry.cardWidth-15);
