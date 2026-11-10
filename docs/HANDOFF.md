@@ -2,6 +2,22 @@
 
 Updated: 2026-11-09
 
+## Picture usability follow-up: pull request #6 (in review)
+
+Development branch: `fix/scroll-undo-compact-picture-controls`
+Pull request: https://github.com/udeudeude/Pashto-English/pull/6
+
+An iPhone user identified three practical issues: pictograms below the bottom of the viewport could not be reached; a rejected picture could not be restored; and two large controls underneath every pictogram wasted vertical space.
+
+Implementation:
+- Make the left picture rail independently vertically scrollable using a viewport-height cap, `overflow-y:auto`, momentum scrolling, `overscroll-behavior`, and `touch-action:pan-y`.
+- Remove `preventDefault()` from card touch listeners so iPhone Safari can perform native vertical panning. Preserve long-press alternatives; reserve diagonal rejection for clearly nonvertical strokes.
+- Rejection now toggles between a gray, crossed-out picture and a restored picture via an ×/↶ button. Preserve this state across visual redraws of the same sentence and clear it for a new sentence.
+- Move both controls into the picture card corners, reducing visible glyph size without reducing finger-sized interactive regions.
+- Add automated WebKit/Chromium tests for scrollable picture overflow, restoration, persistence after redraw, compact card geometry and vertical-versus-diagonal touch behavior.
+
+**Release gate:** Wait for the latest PR #6 browser tests and the Pashto voice regression check to pass before merging. Real iPhone Safari touch scrolling still requires a physical-device observation. The tests exercise layout and synthetic gesture classification but cannot fully simulate the finger-pan compositor.
+
 ## Start here
 
 - Production repository: https://github.com/udeudeude/Pashto-English
