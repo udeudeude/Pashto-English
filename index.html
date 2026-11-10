@@ -7,11 +7,51 @@
 .app-title span[lang="ps"]{font-size:1.1em;unicode-bidi:isolate;margin-top:.16rem;text-align:start}
 #test-pashto-voice{width:100%;min-height:54px;background:#23537e;color:white;margin-top:12px}
 .practice-buttons{display:grid;gap:8px}.practice-buttons button{min-height:48px;padding:10px;background:#e3ecf5;color:#172f4a;text-align:left;border-radius:10px}
+
+.resource-section h2,.share-section h2{font-size:1.13rem;margin:0 0 12px;line-height:1.45}
+.resource-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px}
+.resource-card{display:flex;flex-direction:column;gap:8px;color:#143a63;text-decoration:none;border:1px solid #cbd9e6;background:#f8fafc;border-radius:15px;overflow:hidden;padding-bottom:12px}
+.resource-card:hover,.resource-card:focus-visible{outline:2px solid #1d65a3;outline-offset:2px}
+.resource-card img{display:block;width:100%;height:auto;aspect-ratio:5/3;object-fit:cover;object-position:top center;background:#e3e9ee}
+.resource-card strong,.resource-card .resource-description{display:block;padding:0 12px;line-height:1.38}
+.resource-card strong{font-size:.98rem}
+.resource-card .resource-description{font-size:.85rem;color:#475d73}
+.share-section{text-align:center}
+.share-section .share-qr-link{display:inline-block;max-width:100%;padding:12px;border:1px solid #d0dce8;border-radius:12px;background:#fff;line-height:0}
+.share-section .share-qr-link:focus-visible{outline:3px solid #226da3;outline-offset:3px}
+.share-section .share-qr-link img{display:block;width:216px;height:216px;max-width:100%;image-rendering:pixelated}
+.share-section .share-url{font-size:.82rem;overflow-wrap:anywhere;margin:10px 0 0}
+
 </style></head><body><main><h1 class="app-title"><span lang="en" dir="ltr">Pashto ↔ English</span><span lang="ps" dir="rtl">پښتو ↔ انګلیسي</span></h1><p class="muted">Choose the spoken language. Experimental voice translator. / د خبرې ژبه وټاکئ. دا ازمایښتي غږیز ژباړن دی.</p>
 <section class="panel"><div class="choices"><button id="en" class="english">🎙 English<small>Speak English / په انګلیسي خبرې وکړئ</small></button><button id="ps" class="pashto" lang="ps" dir="rtl">🎙 پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small></button></div><p id="status" role="status" aria-live="polite">Checking speech support… / د غږ ملاتړ کتل کېږي…</p></section>
 <section class="panel"><p class="muted">Translation / ژباړه</p><div id="result" aria-live="polite">Nothing translated yet. / لا ژباړه نشته.</div><button id="replay" disabled>▶ Replay / بیا واورئ</button><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
 <details class="panel" id="self-test"><summary>Try without another speaker / د بل ویونکي پرته ازموینه</summary><p class="muted">These examples test the translation service and speech playback without the microphone. Automated translations may be wrong. / دا بېلګې له مایکروفون پرته ژباړه او غږ ازمويي. اتومات ژباړې کېدای شي ناسمې وي.</p><div class="practice-buttons"><button type="button" id="demo-hello">Example 1 / لومړۍ بېلګه: Hello.</button><button type="button" id="demo-water">Example 2 / دوهمه بېلګه: I need water.</button><button type="button" id="demo-bathroom">Example 3 / درېیمه بېلګه: Where is the bathroom?</button><button type="button" id="demo-pashto">Pashto example / د پښتو بېلګه: سلام، تاسو څنګه یاست؟</button></div></details>
 <details class="panel"><summary>Compatibility and privacy / سازګاري او محرمیت</summary><p id="capabilities"></p><p>Speech recognition and translation may use online providers. Avoid confidential or urgent conversations. Pashto voice output is experimental. / د غږ پېژندنه او ژباړه ښايي له انلاین خدمتونو کار واخلي. په محرمو او بېړنیو خبرو کې دا مه کاروئ. د پښتو غږ ازمایښتي دی او لا باید په تلیفون وازمویل شي.</p><p class="muted" style="font-size:.76rem">Picture sources / د انځورونو سرچینې: <a href="https://arasaac.org/terms-of-use" target="_blank" rel="noopener noreferrer">ARASAAC</a> pictograms by Sergio Palao, owned by the Government of Aragón, Creative Commons BY-NC-SA / د ARASAAC انځورونه د سرخیو پالاو له خوا جوړ شوي، د اراګون حکومت ملکیت دي. <a href="https://iconify.design/docs/icons/icon-set-basics.html" target="_blank" rel="noopener noreferrer">Iconify</a> icons have licenses specific to each collection / د Iconify نښې بېلابېل جوازونه لري.</p><button type="button" id="test-pashto-voice">▶ Test Pashto voice / د پښتو غږ وازمویئ</button></details>
+
+<section class="panel resource-section" aria-labelledby="resource-heading">
+<h2 id="resource-heading">More Pashto–English resources / د پښتو او انګلیسي نورې سرچینې</h2>
+<div class="resource-cards">
+<a class="resource-card" href="https://dsal.uchicago.edu/dictionaries/heston/" target="_blank" rel="noopener noreferrer" aria-label="Open University of Chicago Pashto–English audio dictionary / د شیکاګو پوهنتون د پښتو او انګلیسي غږیز قاموس پرانیزئ">
+<img src="./assets/resources/heston-homepage.png" width="1200" height="720" loading="lazy" alt="Actual homepage of the University of Chicago Pashto–English audio dictionary / د شیکاګو پوهنتون د پښتو او انګلیسي غږیز قاموس کورپاڼه">
+<strong>Pashto–English audio dictionary / د پښتو او انګلیسي غږیز قاموس</strong>
+<span class="resource-description">University of Chicago / د شیکاګو پوهنتون</span>
+</a>
+<a class="resource-card" href="https://www.parsemus.org/free-english-lessons-for-pashto-speakers/" target="_blank" rel="noopener noreferrer" aria-label="Open free English lessons for Pashto speakers / د پښتو ویونکو لپاره وړیا انګلیسي درسونه پرانیزئ">
+<img src="./assets/resources/parsemus-homepage.png" width="1200" height="720" loading="lazy" alt="Actual homepage of free English lessons for Pashto speakers from Parsemus Foundation / د پارسیموس بنسټ د پښتو ویونکو لپاره د وړیا انګلیسي درسونو کورپاڼه">
+<strong>Free English lessons for Pashto speakers / د پښتو ویونکو لپاره وړیا انګلیسي درسونه</strong>
+<span class="resource-description">Parsemus Foundation / پارسیموس بنسټ</span>
+</a>
+</div>
+</section>
+<section class="panel share-section" aria-labelledby="share-heading">
+<h2 id="share-heading">Share this app / دا اپ شریک کړئ</h2>
+<p class="muted">Scan with another phone’s camera to open Pashto ↔ English. / د بل تلیفون په کامره دا کوډ سکن کړئ ترڅو د پښتو او انګلیسي اپ پرانیزئ.</p>
+<a class="share-qr-link" href="https://udeudeude.github.io/Pashto-English/" aria-label="Open the Pashto–English application / د پښتو او انګلیسي اپ پرانیزئ">
+<img src="./assets/resources/share-app.svg" width="320" height="320" alt="QR code for https://udeudeude.github.io/Pashto-English/ / د پښتو او انګلیسي اپ د شریکولو کوډ" loading="lazy">
+</a>
+<p class="share-url"><a href="https://udeudeude.github.io/Pashto-English/">udeudeude.github.io/Pashto-English/</a></p>
+</section>
+
 <footer>Free experimental prototype. Pashto speakers must verify accuracy. The website does not intentionally save conversations. / وړیا ازمایښتي بڼه. د پښتو ویونکي باید د ژباړې سموالی وڅېړي. دا وېبپاڼه خبرې په قصدي ډول نه ساتي.</footer></main>
 <script>
 'use strict';
