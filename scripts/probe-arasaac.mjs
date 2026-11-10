@@ -17,5 +17,12 @@ for(const word of terms){
     cors:response.headers.get('access-control-allow-origin')
   }));
   if(!data.some(item=>Number.isInteger(item._id)))throw Error('No valid numeric pictogram identifiers for '+word);
+  const sample=data.find(item=>item.keywords?.some(k=>k.keyword===word));
+  if(sample){
+   const imageUrl='https://static.arasaac.org/pictograms/'+sample._id+'/'+sample._id+'_300.png';
+   const image=await fetch(imageUrl,{signal:controller.signal});
+   console.log(JSON.stringify({word,imageUrl,imageStatus:image.status,imageType:image.headers.get('content-type'),imageSize:Number(image.headers.get('content-length'))}));
+   if(!image.ok)throw Error('ARASAAC image URL returned '+image.status);
+  }
  }finally{clearTimeout(timer)}
 }
