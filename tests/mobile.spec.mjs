@@ -713,8 +713,10 @@ test('iPhone English recognition never invokes Web Speech and uses owned local t
   safety:window.pashtoMicrophoneSafety?.state()
  }));
  expect(result.localEnglish).toBe(true);
- await expect(page.locator('#capabilities')).toContainText('experimental local model');
+ // The Linux WebKit test runtime lacks a native MediaRecorder; install the
+ // supported recorder mock before asserting the capability label.
  await fakePashtoMicrophone(page);
+ await expect(page.locator('#capabilities')).toContainText('experimental local model');
  await page.evaluate(()=>{
   window.SpeechRecognition=class{start(){window.browserEnglishCalled=true}};
   window.webkitSpeechRecognition=window.SpeechRecognition;
