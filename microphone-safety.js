@@ -55,7 +55,11 @@
   if(document.hidden)stopAll('hidden');
  },{capture:true});
  window.addEventListener('pagehide',()=>stopAll('pagehide'),{capture:true});
- window.addEventListener('blur',()=>stopAll('blur'),{capture:true});
+ window.addEventListener('blur',()=>{
+  // Permission prompts can briefly blur the page before any track exists.
+  // Once capture is active, however, loss of focus immediately stops it.
+  if(streams.size||recognizers.size)stopAll('blur');
+ },{capture:true});
  document.addEventListener('freeze',()=>stopAll('freeze'),{capture:true});
  window.pashtoMicrophoneSafety={
   token:()=>generation,
