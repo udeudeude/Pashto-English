@@ -313,3 +313,120 @@ test('a table is not depicted by a chair when image providers are unavailable',a
  await expect(card).toHaveCount(1);
  await expect(card.locator('.emoji')).toHaveText('❔');
 });
+
+
+test('the left picture rail scrolls independently to items below the viewport',async({page})=>{
+ const sentence='I need a ladder, a shelf, a jar, a book, a chair, water, rice, medicine, a car, a bus, a train, a phone, a window, a clock, a teacher, a doctor, a school, and a table.';
+ await page.evaluate(text=>{
+  document.getElementById('original').textContent=text;
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='د پښتو ازمایښتي ژباړه';
+ },sentence);
+ const rail=page.locator('#picture-column');
+ const cards=rail.locator('.picture-card');
+ await expect.poll(()=>cards.count()).toBeGreaterThan(12);
+ const measured=await rail.evaluate(el=>{
+  const card=el.querySelector('.picture-card');
+  return {
+   scrollHeight:el.scrollHeight,
+   clientHeight:el.clientHeight,
+   overflowY:getComputedStyle(el).overflowY,
+   railTouchAction:getComputedStyle(el).touchAction,
+   cardTouchAction:getComputedStyle(card).touchAction
+  };
+ });
+ expect(measured.scrollHeight).toBeGreaterThan(measured.clientHeight);
+ expect(measured.overflowY).toBe('auto');
+ expect(measured.railTouchAction).toContain('pan-y');
+ expect(measured.cardTouchAction).toContain('pan-y');
+ const atBottom=await rail.evaluate(el=>{
+  el.scrollTop=el.scrollHeight;
+  return {position:el.scrollTop,bottom:el.scrollHeight-el.clientHeight};
+ });
+ expect(atBottom.position).toBeGreaterThan(0);
+ expect(atBottom.position).toBeCloseTo(atBottom.bottom,0);
+ await expect(cards.last()).toBeVisible();
+});
+
+test('rejected picture can be restored immediately and after a visual refresh',async({page})=>{
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need a book';
+  const result=document.getElementById('result');result.lang='ps';result.textContent='کتاب';
+ });
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'book'});
+ const toggle=card.locator('.picture-action-reject');
+ await expect(toggle).toHaveText('×');
+ await toggle.click();
+ await expect(card).toHaveClass(/picture-rejected/);
+ await expect(toggle).toHaveText('↶');
+ await expect(toggle).toHaveAttribute('aria-label',/Undo picture rejection/);
+ await toggle.click();
+ await expect(card).not.toHaveClass(/picture-rejected/);
+ await expect(toggle).toHaveText('×');
+ await toggle.click();
+ await page.locator('#picture-column select').selectOption('emoji');
+ const redrawn=page.locator('#picture-column .picture-card').filter({hasText:'book'});
+ await expect(redrawn).toHaveClass(/picture-rejected/);
+ await redrawn.locator('.picture-action-reject').click();
+ await expect(redrawn).not.toHaveClass(/picture-rejected/);
+});
+
+test('picture action icons no longer consume a row below the illustration',async({page})=>{
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I have a book';
+  const result=document.getElementById('result');result.lang='ps';result.textContent='کتاب';
+ });
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'book'});
+ const sizes=await card.evaluate(el=>{
+  const actions=el.querySelector('.picture-actions');
+  const buttons=Array.from(actions.querySelectorAll('button'));
+  const box=el.getBoundingClientRect(),buttonsRect=buttons.map(b=>b.getBoundingClientRect());
+  const action=actions.getBoundingClientRect();
+  return {cardHeight:box.height,actionPosition:getComputedStyle(actions).position,
+   top:action.top,cardTop:box.top,bottom:action.bottom,cardBottom:box.bottom,
+   buttons:buttonsRect.map(b=>({width:b.width,height:b.height}))};
+ });
+ expect(sizes.actionPosition).toBe('absolute');
+ expect(sizes.cardHeight).toBeLessThan(140);
+ expect(sizes.top).toBeGreaterThanOrEqual(sizes.cardTop);
+ expect(sizes.bottom).toBeLessThan(sizes.cardBottom);
+ expect(sizes.buttons.every(b=>b.width<=42&&b.height<=42)).toBe(true);
+});
+
+test('vertical touch movement leaves rejection alone; diagonal gesture can reject',async({page})=>{
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need a book';
+  const result=document.getElementById('result');result.lang='ps';result.textContent='کتاب';
+ });
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'book'});
+ // Synthetic touch events test gesture classification; they do not simulate
+ // physical Safari scrolling. That is covered separately by the layout test.
+ await card.evaluate(el=>{
+  const event=(type,x,y)=>{
+   const touch={clientX:x,clientY:y};
+   const ev=new Event(type,{bubbles:true,cancelable:true});
+   Object.defineProperty(ev,'touches',{value:type==='touchend'?[]:[touch]});
+   Object.defineProperty(ev,'changedTouches',{value:[touch]});
+   el.dispatchEvent(ev);
+  };
+  event('touchstart',40,50);
+  event('touchmove',43,115);
+  event('touchend',43,115);
+ });
+ await expect(card).not.toHaveClass(/picture-rejected/);
+ await card.evaluate(el=>{
+  const event=(type,x,y)=>{
+   const touch={clientX:x,clientY:y};
+   const ev=new Event(type,{bubbles:true,cancelable:true});
+   Object.defineProperty(ev,'touches',{value:type==='touchend'?[]:[touch]});
+   Object.defineProperty(ev,'changedTouches',{value:[touch]});
+   el.dispatchEvent(ev);
+  };
+  event('touchstart',30,40);
+  event('touchmove',95,58);
+  event('touchend',95,58);
+ });
+ await expect(card).toHaveClass(/picture-rejected/);
+ await card.locator('.picture-action-reject').click();
+ await expect(card).not.toHaveClass(/picture-rejected/);
+});
