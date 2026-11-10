@@ -135,7 +135,14 @@ async function startLocalCapture(lang){
  try{
   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
   if(!valid()||!safety.registerStream(stream,token)){
-   safety.stopStream(stream);return;
+   safety.stopStream(stream);
+   // In particular, an expired permission/focus lease must not strand the
+   // interface in Cancel with no recorder and no usable microphone.
+   if(capture===current){
+    cancelCapture();
+    status('Microphone permission was interrupted. Tap to try again. / د مایکروفون اجازه ودرېده. بیا هڅه وکړئ.');
+   }
+   return;
   }
   current.stream=stream;
   const recorder=new MediaRecorder(stream);
