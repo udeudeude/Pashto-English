@@ -187,10 +187,19 @@ async function discoverUnknown(item,marker,version){
  for(const choice of pictures){
   const actual=await new Promise(resolve=>{
    const img=document.createElement('img');
-   img.src=choice.url;img.alt='';img.loading='eager';
+   let done=false;
+   const timer=setTimeout(()=>finish(null),6500);
+   function finish(value){
+    if(done)return;
+    done=true;clearTimeout(timer);
+    img.onload=null;img.onerror=null;
+    resolve(value);
+   }
+   img.alt='';img.loading='eager';
    img.draggable=false;img.referrerPolicy='no-referrer';
-   img.onload=()=>resolve(img.naturalWidth>0?img:null);
-   img.onerror=()=>resolve(null);
+   img.onload=()=>finish(img.naturalWidth>0?img:null);
+   img.onerror=()=>finish(null);
+   img.src=choice.url;
   });
   if(version!==renderVersion||!marker.isConnected)return;
   if(!actual)continue;
