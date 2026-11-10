@@ -1,3 +1,4 @@
+import {extractVisualConcepts,additions} from './lib/visual-language.mjs';
 // Vocabulary visualization: ordered English tokens, with a consistent picture column.
 // External libraries are optional enhancements. Emoji always remain as a fallback.
 const words = [
@@ -73,7 +74,7 @@ const words = [
  ['three','3️⃣','number-3-square','three']
 ].map(([label,emoji,icon,forms])=>({label,emoji,icon,forms:forms.split(' ')}));
 
-window.__pictureVocab=words;
+window.__pictureVocab=[...words,...additions];
 const result=document.getElementById('result');
 const original=document.getElementById('original');
 const main=document.querySelector('main');
@@ -110,32 +111,14 @@ style.textContent=`
 @media(min-width:650px){.visual-layout{grid-template-columns:185px minmax(0,1fr);gap:20px;padding:24px}}
 `;
 document.head.append(style);
-const stop=new Set('i me my mine you your yours he she it we they them the a an to of in on at for from with by and or but is are was were be been being have has had do does did need needs needed can could would should will this that these those there here as if then than into onto about today tomorrow before after very just please'.split(' '));
-const irregular={cashews:'cashew',shelves:'shelf',knives:'knife',feet:'foot',teeth:'tooth',children:'child',men:'man',women:'woman'};
-const emoji={ladder:'🪜',cashew:'❔',jar:'🫙',shelf:'❔',faucet:'🚰',mattress:'🛏️',curtain:'🪟',hinge:'🚪',washer:'🔩'};
-const verifiedSearch={ladder:'ladder',jar:'jar',shelf:null,cashew:null};
-const iconCache=new Map();
 let renderVersion=0;
 function englishText(){
- // Do not show apparently verified pictures when translation is missing or failed.
- // The source transcript may exist even after a translation error.
  if(result.getAttribute('lang')==='en')return result.textContent;
  if(result.getAttribute('lang')==='ps')return original.textContent;
  return '';
 }
 function matches(){
- const tokens=englishText().toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
- const output=[];
- for(const token of tokens){
-  if(stop.has(token))continue;
-  const known=words.find(w=>w.forms.includes(token));
-  const base=irregular[token]||(token.endsWith('ies')?token.slice(0,-3)+'y':token.endsWith('s')&&!token.endsWith('ss')?token.slice(0,-1):token);
-  // Unknown words are not assumed to be nouns. Search only if a vetted entry exists.
-  if(known)output.push(known);
-  else if(Object.hasOwn(verifiedSearch,base))output.push({label:base,emoji:emoji[base]||'🔎',icon:base,unknown:true});
-  if(output.length>=30)break;
- }
- return output;
+ return extractVisualConcepts(englishText(),words);
 }
 function emojiNode(value){
  const span=document.createElement('span');span.className='emoji';span.textContent=value;span.setAttribute('aria-hidden','true');return span;
@@ -195,6 +178,34 @@ async function availablePicture(item,card,version,sourceName){
  }
  next();
 }
+// Unknown content words are not silently omitted: discover matching
+// pictograms and insert a card only after an actual image loads.
+async function discoverUnknown(item,marker,version){
+ if(picker.value==='emoji'){marker.remove();return}
+ const pictures=await (window.pictureCatalog?.find(item.label,{max:6,prefer:picker.value==='iconoir'?'iconify':'arasaac'})||Promise.resolve([])).catch(()=>[]);
+ if(version!==renderVersion||!marker.isConnected)return;
+ for(const choice of pictures){
+  const actual=await new Promise(resolve=>{
+   const img=document.createElement('img');
+   img.src=choice.url;img.alt='';img.loading='eager';
+   img.draggable=false;img.referrerPolicy='no-referrer';
+   img.onload=()=>resolve(img.naturalWidth>0?img:null);
+   img.onerror=()=>resolve(null);
+  });
+  if(version!==renderVersion||!marker.isConnected)return;
+  if(!actual)continue;
+  const card=document.createElement('div');
+  card.className='picture-card';
+  card.dataset.discovered='yes';
+  const caption=document.createElement('span');
+  caption.className='word';
+  caption.textContent=item.label;
+  card.append(actual,caption);
+  marker.replaceWith(card);
+  return;
+ }
+ marker.remove();
+}
 function draw(){
  const version=++renderVersion;
  stack.replaceChildren();
@@ -202,7 +213,19 @@ function draw(){
  if(!items.length){
   const p=document.createElement('p');p.className='muted';p.textContent='Pictures appear after translation. / انځورونه له ژباړې وروسته ښکاري.';p.style.fontSize='.8rem';stack.append(p);return;
  }
+ let dynamicRequests=0;
  for(const item of items){
+  if(item.unknown){
+   // Limit third-party queries per sentence. Hidden anchors retain word order
+   // until a confirmed image arrives; failed searches leave no misleading card.
+   if(dynamicRequests++>=12)continue;
+   const marker=document.createElement('span');
+   marker.className='picture-discovery-anchor';
+   marker.hidden=true;
+   stack.append(marker);
+   discoverUnknown(item,marker,version);
+   continue;
+  }
   const card=document.createElement('div');card.className='picture-card';
   const fallback=emojiNode(item.emoji);
   if(picker.value==='emoji')card.append(fallback);
