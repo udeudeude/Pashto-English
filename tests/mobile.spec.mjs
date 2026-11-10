@@ -163,8 +163,12 @@ test('a slow previous translation cannot overwrite a newer sentence',async ({pag
 });
 
 test('Pashto recording does not replace the shared replay handler',async ({page})=>{
-  const previous=await page.evaluate(()=>document.getElementById('replay').onclick.toString());
-  expect(previous).toContain('lastSpeech');
+  await fakePashtoMicrophone(page);
+  await page.evaluate(()=>{window.previousReplayHandler=document.getElementById('replay').onclick});
+  await page.locator('#ps').click();
+  await expect(page.locator('#ps')).toContainText('Stop');
+  await page.locator('#ps').click();
+  expect(await page.evaluate(()=>document.getElementById('replay').onclick===window.previousReplayHandler)).toBe(true);
   const controller=await page.evaluate(()=>Object.keys(window.pashtoApp));
   expect(controller).toEqual(expect.arrayContaining(['begin','process','fail','demo']));
 });
@@ -587,4 +591,34 @@ test('cancelling Pashto while translation is pending prevents late speech and Re
  await expect(page.locator('#replay')).toBeDisabled();
  await expect(page.locator('#result')).toContainText('Waiting for speech');
  expect(await page.evaluate(()=>window.spokenAfterCancel)).toBe(0);
+});
+
+
+test('slower replay preserves the current translation and cannot replay after a new conversation',async({page})=>{
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({responseStatus:200,responseData:{translatedText:'سلام'}})}));
+ await page.evaluate(()=>{
+  window.playbackCalls=[];
+  window.pashtoVoice.speak=async(text,options)=>{window.playbackCalls.push({text,slow:options?.slow===true})};
+ });
+ await page.locator('#self-test summary').click();
+ await page.locator('#demo-hello').click();
+ await expect(page.locator('#replay-slow')).toBeEnabled();
+ await page.locator('#replay-slow').click();
+ await page.locator('#replay').click();
+ expect(await page.evaluate(()=>window.playbackCalls)).toEqual([{text:'سلام',slow:false},{text:'سلام',slow:true},{text:'سلام',slow:false}]);
+ await page.evaluate(()=>window.pashtoApp.begin('ps'));
+ await expect(page.locator('#replay-slow')).toBeDisabled();
+});
+
+
+test('Pashto pronunciation choice is audible and persists without accepting unknown voices',async({page})=>{
+ await page.locator('summary').last().click();
+ await page.locator('#pashto-dialect').selectOption('ps-x-northwest');
+ await expect(page.locator('#status')).toContainText('Playing Pashto translation',{timeout:90_000});
+ expect(await page.evaluate(()=>window.pashtoVoice.selectedVoice())).toBe('ps-x-northwest');
+ await page.reload();
+ await expect(page.locator('#pashto-dialect')).toHaveValue('ps-x-northwest');
+ await page.evaluate(()=>localStorage.setItem('pashto-pronunciation','fa'));
+ await page.reload();
+ await expect(page.locator('#pashto-dialect')).toHaveValue('ps');
 });

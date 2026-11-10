@@ -1,0 +1,33 @@
+name: Pashto recognition comparison
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tests/recognition-benchmark.spec.mjs'
+      - 'tests/fixtures/evaluation-worker.js'
+      - 'scripts/prepare-recognition-evaluation.py'
+      - '.github/workflows/recognition-benchmark.yml'
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Fetch original public evaluation clips into temporary storage
+        run: python3 scripts/prepare-recognition-evaluation.py
+      - name: Evaluate real public speech without retaining recordings
+        run: npx playwright test tests/recognition-benchmark.spec.mjs --project=android-chromium --workers=1 --retries=0 --trace=off
+        env:
+          PASHTO_BENCHMARK: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aggregate-recognition-comparison
+          path: test-results/aggregate/*.json
+          if-no-files-found: ignore

@@ -29,3 +29,22 @@ console.log(JSON.stringify({
   wavBytes:wav.byteLength,
   text:phrase
 },null,2));
+
+const slower=espeak.synthesize(phrase,{rate:130});
+assert.ok(slower.samples.length>samples.length*1.2,'Slower synthesis must lengthen speech without changing sample rate');
+assert.equal(slower.sampleRate,sampleRate);
+const normalAgain=espeak.synthesize(phrase,{rate:175});
+assert.equal(espeak.getParameter('rate'),175,'Temporary rate override must restore normal speed');
+assert.ok(Math.abs(normalAgain.samples.length-samples.length)<sampleRate*0.02,'Normal duration must be restored (allow synthesis jitter)');
+console.log(JSON.stringify({slowDurationSeconds:slower.samples.length/slower.sampleRate,normalDurationSeconds:samples.length/sampleRate}));
+
+// Verify that variants change actual phoneme rules, not just their labels.
+const dialectPhonemes=[];
+for(const voice of ['ps','ps-x-northwest','ps-x-southeast','ps-x-yusufzai']){
+ const phonemes=espeak.phonemes('پښتو، ښځه، ځمکه، څنګه؟',{voice});
+ dialectPhonemes.push(phonemes);
+ const audio=espeak.synthesize(phrase,{voice,rate:175});
+ assert.ok(audio.samples.some(sample=>Math.abs(sample)>30),`Silent dialect voice: ${voice}`);
+}
+assert.equal(new Set(dialectPhonemes).size,4,'All four choices must use distinct pronunciation rules');
+console.log('All four Pashto pronunciation variants produced non-silent audio and distinct phonemes.');
