@@ -163,6 +163,15 @@ function begin(source){
  clearTranslation();
  return session;
 }
+// Cancel without running begin('en'): that would unlock the playback
+// AudioContext while an iPhone is leaving the foreground.
+function cancelCurrentSession(){
+ const session=++requestSeq;
+ window.dispatchEvent(new Event('pashto-session-start'));
+ if(active)stopBrowserRecognition(active);
+ clearTranslation();
+ return session;
+}
 function fail(message,session){
  if(session!==requestSeq)return;
  lastSpeech=null;$('replay').disabled=true;
@@ -286,7 +295,7 @@ function demo(text,source){
  const session=begin(source);
  return processTranscript(text,source,session);
 }
-window.pashtoApp={begin,process:processTranscript,fail,demo,isCurrent:session=>session===requestSeq};
+window.pashtoApp={begin,cancel:cancelCurrentSession,process:processTranscript,fail,demo,isCurrent:session=>session===requestSeq};
 $('en').setAttribute('aria-pressed','false');
 $('en').onclick=()=>start('en');
 $('replay').onclick=()=>{
