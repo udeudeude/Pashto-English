@@ -26,5 +26,26 @@ for(const [name,browserType] of [['chromium',chromium],['webkit',webkit]]){
   });
   console.log(name+' '+JSON.stringify(result));
   if(result.image.width<20)throw Error('ARASAAC image not rendered');
+  // End-to-end check: the actual sentence picture rail must prefer a loaded
+  // ARASAAC pictogram, and its alternative picker must retain BOTH sources.
+  await page.evaluate(()=>{
+    const original=document.getElementById('original');
+    const translated=document.getElementById('result');
+    original.textContent='Look at the box';
+    translated.lang='ps';
+    translated.textContent='بکس ته وګوره';
+  });
+  await page.waitForFunction(()=>{
+    const card=[...document.querySelectorAll('.picture-card')].find(c=>c.querySelector('.word')?.textContent==='look');
+    const img=card?.querySelector(':scope > img');
+    return img?.complete&&img.naturalWidth>0&&img.title.includes('ARASAAC');
+  },null,{timeout:30000});
+  const card=page.locator('#picture-column .picture-card').filter({hasText:'look'});
+  await card.locator('.picture-action-alternatives').click();
+  await page.waitForFunction(()=>{
+    const section=document.querySelector('.picture-choice-group');
+    return section?.textContent.includes('ARASAAC')&&section?.textContent.includes('Iconify');
+  },null,{timeout:30000});
+  console.log(name+' main rail and alternatives show real ARASAAC + Iconify choices');
  }finally{await page.close();await browser.close()}
 }
