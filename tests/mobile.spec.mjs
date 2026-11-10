@@ -430,3 +430,85 @@ test('vertical touch movement leaves rejection alone; diagonal gesture can rejec
  await card.locator('.picture-action-reject').click();
  await expect(card).not.toHaveClass(/picture-rejected/);
 });
+
+// Microphone lifecycle tests use deterministic browser fakes, not real recordings.
+async function fakePashtoMicrophone(page,{pending=false}={}){
+ await page.evaluate(({pending})=>{
+  window.captureStats={requests:0,stops:0,recorders:0};
+  const stream={getTracks:()=>[{stop(){window.captureStats.stops++}}]};
+  Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:()=>{
+   window.captureStats.requests++;
+   return pending?new Promise(resolve=>{window.grantMicrophone=()=>resolve(stream)}):Promise.resolve(stream);
+  }});
+  window.MediaRecorder=class{
+   constructor(){this.state='inactive';window.captureStats.recorders++;window.fakeRecorder=this}
+   start(){this.state='recording'}
+   stop(){this.state='inactive';queueMicrotask(()=>this.onstop?.())}
+  };
+ },{pending});
+}
+test('Pashto permission can be cancelled without opening a second microphone',async({page})=>{
+ await fakePashtoMicrophone(page,{pending:true});
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Cancel');
+ await page.locator('#ps').click();
+ await page.evaluate(()=>window.grantMicrophone());
+ await expect.poll(()=>page.evaluate(()=>window.captureStats)).toEqual({requests:1,stops:1,recorders:0});
+ await expect(page.locator('#ps')).toContainText('Speak Pashto');
+});
+test('new conversation stops Pashto microphone and ignores its late stop callback',async({page})=>{
+ await fakePashtoMicrophone(page);
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.evaluate(()=>{
+  window.pashtoApp.begin('en');window.pashtoStatus('New conversation / نوې خبرې');
+ });
+ await expect.poll(()=>page.evaluate(()=>window.captureStats.stops)).toBeGreaterThan(0);
+ await expect(page.locator('#ps')).toContainText('Speak Pashto');
+ await expect(page.locator('#status')).toHaveText('New conversation / نوې خبرې');
+});
+test('Pashto microphone error releases capture and leaves retry available',async({page})=>{
+ await fakePashtoMicrophone(page);
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.evaluate(()=>window.fakeRecorder.onerror({error:new Error('capture failed')}));
+ await expect(page.locator('#result')).toContainText('Translation unavailable');
+ await expect(page.locator('#ps')).toContainText('Speak Pashto');
+ await expect.poll(()=>page.evaluate(()=>window.captureStats.stops)).toBeGreaterThan(0);
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+});
+test('Pashto recording stops automatically after twenty seconds',async({page})=>{
+ await page.clock.install();
+ await fakePashtoMicrophone(page);
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.clock.fastForward(20_001);
+ await expect(page.locator('#ps')).toContainText('Speak Pashto');
+ await expect(page.locator('#status')).toContainText('No usable speech');
+ await expect.poll(()=>page.evaluate(()=>window.captureStats.stops)).toBeGreaterThan(0);
+});
+test('real module worker loads lazily, transcribes and recovers after runtime failure',async({page})=>{
+ // Mock only the remote library; exercise the real local worker and messaging.
+ await page.route('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1',route=>route.fulfill({
+  contentType:'application/javascript',body:`
+   export const env={backends:{onnx:{wasm:{}}}};
+   export async function pipeline(task,model,options){
+    if(env.allowLocalModels!==false||env.backends.onnx.wasm.numThreads!==1)throw Error('Incorrect runtime configuration');
+    return async(audio,options)=>{
+     if(audio[0]===1)throw Error('wasm initialization failed');
+     if(options.language!=='pashto'||options.task!=='transcribe')throw Error('Incorrect language');
+     return {text:'سلام'};
+    };
+   }`,
+ }));
+ const result=await page.evaluate(async()=>{
+  const {createRecognitionClient}=await import('./lib/recognition-client.mjs');
+  const client=createRecognitionClient({timeoutMs:15_000});
+  let failure='';
+  try{await client.recognize(new Float32Array([1]))}catch(error){failure=error.message}
+  const text=await client.recognize(new Float32Array([0]));client.cancel();
+  return {failure,text};
+ });
+ expect(result).toEqual({failure:'wasm initialization failed',text:'سلام'});
+});

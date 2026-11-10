@@ -114,6 +114,7 @@ function clearTranslation(){
 }
 function begin(source){
  const session=++requestSeq;
+ window.dispatchEvent(new Event('pashto-session-start'));
  if(active){try{active.abort()}catch(e){try{active.stop()}catch(_){} }active=null}
  if(source==='en')window.pashtoVoice?.unlock();
  clearTranslation();
@@ -171,7 +172,7 @@ function demo(text,source){
  const session=begin(source);
  return processTranscript(text,source,session);
 }
-window.pashtoApp={begin,process:processTranscript,fail,demo};
+window.pashtoApp={begin,process:processTranscript,fail,demo,isCurrent:session=>session===requestSeq};
 $('en').onclick=()=>start('en');
 $('replay').onclick=()=>{
  if(!lastSpeech)return;

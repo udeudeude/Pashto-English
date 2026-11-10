@@ -2,12 +2,25 @@
 
 Updated: 2026-11-09
 
-## Active recognition reliability work
+## Active recognition reliability work — pull request #8
 
-Branch: `fix/pashto-recognition-runtime`, based on main `851203d`. No open pull requests existed at session start; main browser and deployment checks passed.
+Branch: `fix/pashto-recognition-runtime`; https://github.com/udeudeude/Pashto-English/pull/8 (draft, not deployed).
+Based on main `851203d`; first remote commit `2e4fa3f` corrects memory error classification.
 
-First correction: memory exhaustion now takes precedence over generic WebAssembly/backend errors, so phones receive the actionable memory explanation. Regression unit test passes. Investigating recognition startup and recording races next. Existing physical-device and fluent-speaker limitations below still apply.
+Implemented next milestone:
+- Run Whisper in a lazy, disposable module worker with one WebAssembly thread. Keep model initialization and inference off the interface thread.
+- Destroy failed/timed-out workers so Retry starts a fresh runtime; reuse healthy workers. Timeout is three minutes, with user cancellation available throughout.
+- Prevent overlapping microphone requests, dispose of permission grants arriving after cancellation, release capture on new conversations/page hiding/errors, and ignore stale callbacks.
+- Limit recording to 20 seconds and reject decoded audio over 21 seconds to bound memory use.
+- Add six worker-client unit tests and five browser regressions (each Chromium/WebKit). Browser tests mock microphone and remote model; they do NOT measure recognition accuracy.
 
+Local checks: syntax, 6 worker-client tests, 4 speech-error tests, 4 transcript tests, 7 visual-language tests pass. Voice waveform generation passes (2.09 seconds, non-silent). Local browser installation failed with an invalid download archive; GitHub browser execution pending on the new commit.
+
+Investigation evidence: Transformers.js 3.8.1 `src/backends/onnx.js` retains `wasmInitPromise` even when initialization rejects, and chains inference promises. Merely resetting our pipeline promise cannot clear these failures. Source: https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/src/backends/onnx.js . Runtime configuration reference: https://huggingface.co/docs/transformers.js/v3.8.1/custom_usage . Worker restart fixes retry isolation; it does not establish the cause of the originally reported phone startup failure or prove model compatibility on that phone.
+
+Next: inspect PR #8 browser checks and fix any failures, then run an actual model load/transcription on a physical phone and record its download/memory/latency. Benchmark licensed Afghan speech using the existing evaluation guide. No recognition accuracy, physical-device compatibility, or fluent-speaker intelligibility result is claimed.
+
+Publishing: direct git push has no credentials here; connected GitHub Git-data tools publish atomic trees/commits with an expected-head check. No force pushes. All useful source changes are in the PR; generated test audio is reproducible and contains only the existing public test phrase.
 
 ## Picture usability follow-up: pull request #6 (merged)
 

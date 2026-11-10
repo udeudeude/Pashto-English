@@ -33,6 +33,8 @@ jobs:
         run: npm run test:visual
       - name: Test readable recognition failure messages
         run: npm run test:speech-errors
+      - name: Test recognition worker recovery
+        run: npm run test:recognition
       - name: Test mobile browsers
         run: npm test
       - name: Upload traces after failure
