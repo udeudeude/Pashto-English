@@ -447,10 +447,16 @@ test('vertical touch movement leaves rejection alone; diagonal gesture can rejec
 async function fakePashtoMicrophone(page,{pending=false}={}){
  await page.evaluate(({pending})=>{
   window.captureStats={requests:0,stops:0,recorders:0};
-  const stream={getTracks:()=>[{stop(){window.captureStats.stops++}}]};
+  const createStream=()=>{
+   const track={readyState:'live',stop(){
+    if(this.readyState==='ended')return;
+    this.readyState='ended';window.captureStats.stops++;
+   }};
+   return {getTracks:()=>[track]};
+  };
   Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:()=>{
    window.captureStats.requests++;
-   return pending?new Promise(resolve=>{window.grantMicrophone=()=>resolve(stream)}):Promise.resolve(stream);
+   return pending?new Promise(resolve=>{window.grantMicrophone=()=>resolve(createStream())}):Promise.resolve(createStream());
   }});
   window.MediaRecorder=class{
    constructor(){this.state='inactive';window.captureStats.recorders++;window.fakeRecorder=this}
