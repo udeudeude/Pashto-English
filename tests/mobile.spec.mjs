@@ -430,3 +430,35 @@ test('vertical touch movement leaves rejection alone; diagonal gesture can rejec
  await card.locator('.picture-action-reject').click();
  await expect(card).not.toHaveClass(/picture-rejected/);
 });
+
+
+test('linked homepage previews and app-sharing QR are displayed at the bottom', async ({ page }) => {
+ const resources=page.locator('.resource-section');
+ const cards=resources.locator('a.resource-card');
+ await expect(cards).toHaveCount(2);
+ await expect(resources.locator('h2')).toContainText('د پښتو');
+ await expect(cards.nth(0)).toHaveAttribute('href','https://dsal.uchicago.edu/dictionaries/heston/');
+ await expect(cards.nth(1)).toHaveAttribute('href','https://www.parsemus.org/free-english-lessons-for-pashto-speakers/');
+ for(const card of await cards.all()){
+   await expect(card).toHaveAttribute('target','_blank');
+   await expect(card.locator('img')).toHaveAttribute('alt',/homepage/i);
+   const image=card.locator('img');
+   await image.scrollIntoViewIfNeeded();
+   await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+ }
+ const share=page.locator('.share-section');
+ await expect(share.locator('h2')).toContainText('دا اپ شریک کړئ');
+ await expect(share.locator('.share-qr-link')).toHaveAttribute('href','https://udeudeude.github.io/Pashto-English/');
+ await expect(share.locator('img')).toHaveAttribute('src','./assets/resources/share-app.svg');
+ const qr=share.locator('img');
+ await qr.scrollIntoViewIfNeeded();
+ await expect.poll(()=>qr.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+ const bottomOrder=await page.evaluate(()=>{
+   const footer=document.querySelector('footer'),share=document.querySelector('.share-section'),resources=document.querySelector('.resource-section');
+   const selftest=document.querySelector('#self-test');
+   return [selftest,resources,share,footer].map(el=>Array.from(document.querySelectorAll('main > *')).indexOf(el));
+ });
+ expect(bottomOrder[0]).toBeLessThan(bottomOrder[1]);
+ expect(bottomOrder[1]).toBeLessThan(bottomOrder[2]);
+ expect(bottomOrder[2]).toBeLessThan(bottomOrder[3]);
+});
