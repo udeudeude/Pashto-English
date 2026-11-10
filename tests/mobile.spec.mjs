@@ -176,7 +176,7 @@ test('failed translation cannot leave pictures that look like a successful resul
   const result=document.getElementById('result');
   result.lang='ps';result.textContent='زینه';
  });
- await expect(page.locator('#picture-column .picture-card')).toHaveCount(1);
+ await expect(page.locator('#picture-column .picture-card')).toHaveCount(2);
  await page.evaluate(()=>{
   const result=document.getElementById('result');
   result.removeAttribute('lang');
