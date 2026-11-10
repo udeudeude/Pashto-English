@@ -10,7 +10,7 @@ Updated: 2026-11-09
 - **Last completed development branch:** `fix/shared-translation-and-self-test` (merged into `main`)
 - **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/3
 - **Latest merged image fix:** https://github.com/udeudeude/Pashto-English/pull/4, branch `fix/real-picture-alternatives` (merged into `main`).
-- **Current improvement pull request:** https://github.com/udeudeude/Pashto-English/pull/5, branch `improve/picture-coverage-and-title`.
+- **Most recent merged improvement:** https://github.com/udeudeude/Pashto-English/pull/5, branch `improve/picture-coverage-and-title`, merged into `main` at `7e2d4bc6d2eb757501727da05840df452050db1d`.
 
 Future ChatGPT Work and Chat sessions should check the latest branch, open pull requests, test results and this file **before doing new work**. Do not repeat implemented features. PR #3 was merged after green checks; review newly opened PRs before starting work.
 
@@ -66,7 +66,7 @@ Pull request #4 adds browser regression tests using mocked source endpoints. **V
 
 Do not create or edit graphics to solve this; use existing appropriately licensed image resources.
 
-## Current in-review improvement: PR #5
+## Completed and merged improvement: PR #5
 
 A user iPhone screenshot revealed substantial omissions from the vertical picture column and a page heading that wrapped English and Pashto into the same broken line. PR #5:
 
@@ -77,4 +77,4 @@ A user iPhone screenshot revealed substantial omissions from the vertical pictur
 5. Includes Node and Playwright regression tests for title layout, word order, expansion, on-demand images, and not confusing a cashew with a peanut.
 6. Replaces large raw Pashto WebAssembly failure messages with concise English/Pashto error messages. **This does not resolve the underlying WebAssembly backend failure.**
 
-**Next action:** verify the latest checks for PR #5, fix regressions, merge when green and inspect the deployed iPhone site. Continue work on Pashto recognizer backend reliability separately. Never claim model startup was fixed by changing the wording alone.
+**Verification:** GitHub Actions passed **34 mobile Chromium/WebKit browser tests**, all added visual-language and recognition-error unit tests, and Pashto waveform generation on PR #5, head `3ae050062480230382d8286c2867a37f403377bf`. All changes were merged on November 9, 2026 (New York time). GitHub Pages deployment and real iPhone testing should be checked; the bilingual title should occupy exactly two lines and more meaning-bearing words should gain real pictograms when providers return them. The underlying Pashto recognition WebAssembly startup failure remains unresolved; only the error display was improved.
