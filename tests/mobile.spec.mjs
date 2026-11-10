@@ -364,7 +364,10 @@ test('rejected picture can be restored immediately and after a visual refresh',a
  await expect(card).not.toHaveClass(/picture-rejected/);
  await expect(toggle).toHaveText('×');
  await toggle.click();
- await page.locator('#picture-column select').selectOption('emoji');
+ await page.evaluate(()=>{
+  const result=document.getElementById('result');
+  result.textContent=result.textContent; // Re-render the same sentence.
+ });
  const redrawn=page.locator('#picture-column .picture-card').filter({hasText:'book'});
  await expect(redrawn).toHaveClass(/picture-rejected/);
  await redrawn.locator('.picture-action-reject').click();
@@ -386,11 +389,20 @@ test('picture action icons no longer consume a row below the illustration',async
    top:action.top,cardTop:box.top,bottom:action.bottom,cardBottom:box.bottom,
    buttons:buttonsRect.map(b=>({width:b.width,height:b.height}))};
  });
- expect(sizes.actionPosition).toBe('absolute');
+ expect(sizes.actionPosition).toBe('static');
  expect(sizes.cardHeight).toBeLessThan(140);
  expect(sizes.top).toBeGreaterThanOrEqual(sizes.cardTop);
  expect(sizes.bottom).toBeLessThan(sizes.cardBottom);
- expect(sizes.buttons.every(b=>b.width<=42&&b.height<=42)).toBe(true);
+ expect(sizes.buttons.every(b=>b.width<=28&&b.height<=28)).toBe(true);
+ const alignment=await card.evaluate(el=>{
+  const word=el.querySelector('.picture-caption .word').getBoundingClientRect();
+  const actions=el.querySelector('.picture-caption .picture-actions').getBoundingClientRect();
+  const image=el.querySelector(':scope > img, :scope > .emoji').getBoundingClientRect();
+  return {wordCenter:(word.top+word.bottom)/2,actionCenter:(actions.top+actions.bottom)/2,
+   imageBottom:image.bottom,actionsTop:actions.top};
+ });
+ expect(Math.abs(alignment.wordCenter-alignment.actionCenter)).toBeLessThan(13);
+ expect(alignment.actionsTop).toBeGreaterThanOrEqual(alignment.imageBottom-2);
 });
 
 test('vertical touch movement leaves rejection alone; diagonal gesture can reject',async({page})=>{
@@ -587,4 +599,96 @@ test('cancelling Pashto while translation is pending prevents late speech and Re
  await expect(page.locator('#replay')).toBeDisabled();
  await expect(page.locator('#result')).toContainText('Waiting for speech');
  expect(await page.evaluate(()=>window.spokenAfterCancel)).toBe(0);
+});
+
+
+test('all image sources are searched; ARASAAC and Iconify options coexist',async({page})=>{
+ const svg='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>';
+ await page.route(/https:\/\/api\.arasaac\.org\/v1\/pictograms\/en\/search\//,route=>{
+   const term=decodeURIComponent(route.request().url().split('/').pop());
+   return route.fulfill({status:200,contentType:'application/json',
+     headers:{'access-control-allow-origin':'*'},
+     body:JSON.stringify([{_id:152,keywords:[{keyword:term,type:2}]}])});
+ });
+ await page.route(/https:\/\/static\.arasaac\.org\/pictograms\//,route=>
+   route.fulfill({status:200,contentType:'image/svg+xml',body:svg}));
+ await page.route(/https:\/\/api\.iconify\.design\/search\?/,route=>
+   route.fulfill({status:200,contentType:'application/json',body:'{"icons":["mdi:box"]}'}));
+ await page.route(/https:\/\/api\.iconify\.design\/.+\.svg/,route=>
+   route.fulfill({status:200,contentType:'image/svg+xml',body:svg}));
+ const sources=await page.evaluate(async()=>{
+   const choices=await window.pictureCatalog.find('box',{max:6});
+   return [...new Set(choices.map(x=>x.source))];
+ });
+ expect(sources).toEqual(expect.arrayContaining(['ARASAAC','Iconify']));
+ await expect(page.locator('#picture-column select')).toHaveCount(0);
+ await expect(page.locator('.picture-source-label')).toContainText('ARASAAC + Iconify');
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='Open the box';
+  const result=document.getElementById('result');
+  result.lang='ps';result.textContent='بکس خلاص کړئ';
+ });
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'box'});
+ await expect(card).toHaveCount(1);
+ await expect.poll(()=>card.locator('img').count()).toBeGreaterThan(0);
+ await card.locator('.picture-action-alternatives').click();
+ const picker=page.locator('.picture-choice-group').first();
+ await expect.poll(()=>picker.locator('button').count()).toBeGreaterThan(1);
+ await expect(picker).toContainText('ARASAAC');
+ await expect(picker).toContainText('Iconify');
+});
+
+test('ARASAAC failure is communicated, rather than silently presenting Iconify as ARASAAC',async({page})=>{
+ await page.route('https://api.arasaac.org/**',route=>route.abort());
+ await page.evaluate(async()=>{await window.pictureCatalog.find('ladder',{max:6})});
+ await expect(page.locator('.picture-source-label')).toContainText('ARASAAC unavailable');
+});
+
+test('English recognition stops on background and discards a late transcript',async({page})=>{
+ await page.addInitScript(()=>{
+   window.webkitSpeechRecognition=class {
+     constructor(){window.fakeEnglishRecognition=this}
+     start(){this.started=true}
+     stop(){this.stopped=true}
+     abort(){this.aborted=true}
+   };
+ });
+ await page.reload();
+ await expect(page.locator('#en')).toBeEnabled();
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','true');
+ await page.evaluate(()=>{
+   Object.defineProperty(document,'hidden',{configurable:true,value:true});
+   document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
+ expect(await page.evaluate(()=>window.fakeEnglishRecognition.aborted)).toBe(true);
+ await expect(page.locator('#status')).toContainText('background');
+ await expect(page.locator('#replay')).toBeDisabled();
+});
+
+test('English microphone stops on second tap and immediately after a final recognition result',async({page})=>{
+ await page.addInitScript(()=>{
+   window.webkitSpeechRecognition=class{
+     constructor(){window.recordingSessions=(window.recordingSessions||[]);window.recordingSessions.push(this)}
+     start(){}
+     abort(){this.aborted=true}
+   };
+ });
+ await page.reload();
+ await page.locator('#en').click();
+ await page.locator('#en').click();
+ expect(await page.evaluate(()=>window.recordingSessions[0].aborted)).toBe(true);
+ await page.locator('#en').click();
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({
+   status:200,contentType:'application/json',
+   body:'{"responseStatus":200,"responseData":{"translatedText":"کتاب"}}'
+ }));
+ await page.evaluate(()=>{
+   const rec=window.recordingSessions[1];
+   rec.onresult({results:[[{transcript:'book'}]]});
+ });
+ expect(await page.evaluate(()=>window.recordingSessions[1].aborted)).toBe(true);
+ await expect(page.locator('#original')).toHaveText('book');
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
 });
