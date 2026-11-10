@@ -22,3 +22,15 @@ test('resource screenshots are present, real images, not text placeholders',asyn
   assert.equal(bytes.readUInt32BE(20),720,'Capture the full homepage height');
  }
 });
+
+
+test('share QR precedes resources and compatibility, without redundant scan instructions',async()=>{
+ const html=await readFile('index.html','utf8');
+ const share=html.indexOf('<section class="panel share-section"');
+ const resources=html.indexOf('<section class="panel resource-section"');
+ const privacy=html.indexOf('<summary>Compatibility and privacy');
+ assert.ok(share>=0&&resources>share&&privacy>resources,'Expected QR, resources, then compatibility and privacy');
+ assert.ok(!html.includes('Scan with another phone’s camera'));
+ assert.ok(!html.includes('د بل تلیفون په کامره دا کوډ سکن کړئ'));
+ assert.ok(html.includes('assets/resources/share-app.svg'));
+});
