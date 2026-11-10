@@ -25,6 +25,8 @@ jobs:
         run: npm run check
       - name: Test Pashto scoring calculations
         run: npm run test:transcripts
+      - name: Test word-to-picture coverage and sentence order
+        run: npm run test:visual
       - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
       - name: Test mobile browsers
