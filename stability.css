@@ -37,3 +37,108 @@
 @media(max-width:390px){.picture-choice-candidates{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .picture-choice-note{display:block;color:#4a5b6c;font-size:.65rem;line-height:1.25;text-align:center;max-width:100%;overflow-wrap:anywhere}
+
+
+/* Accessible independent scrolling of the whole picture rail on iPhone/Android. */
+#picture-column.picture-column{
+  top:8px;
+  max-height:calc(100vh - 16px);
+  max-height:calc(100dvh - 16px);
+  min-height:0;
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+  scrollbar-width:thin;
+  scrollbar-color:#a8b8c8 transparent;
+}
+#picture-column .picture-stack{padding-bottom:12px}
+/* Vertical gestures on the card must reach its scrollable ancestor. */
+#picture-column .picture-card{
+  touch-action:pan-y;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  padding:6px 3px 7px;
+  gap:3px;
+}
+#picture-column .picture-card > img,
+#picture-column .picture-card > .emoji{
+  touch-action:pan-y;
+}
+/* Two modest controls overlap empty card corners, adding NO row underneath. 
+   Pointer targets remain large enough for mobile tapping. */
+#picture-column .picture-card .picture-actions{
+  position:absolute;
+  top:2px;
+  left:2px;
+  right:2px;
+  width:auto;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:0;
+  margin:0;
+  z-index:2;
+  pointer-events:none;
+}
+#picture-column .picture-card .picture-actions button{
+  width:38px;
+  height:38px;
+  min-width:38px;
+  min-height:38px;
+  margin:0;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  border-radius:12px;
+  border:1px solid #bfccd8;
+  background:rgba(255,255,255,.88);
+  font-size:1.12rem;
+  line-height:1;
+  font-weight:650;
+  box-shadow:0 1px 2px #213b5414;
+  touch-action:manipulation;
+  pointer-events:auto;
+}
+#picture-column .picture-card .picture-actions button:active{
+  background:#d6e5f4;
+}
+#picture-column .picture-card.picture-rejected .picture-action-reject{
+  color:#125b35;
+  background:#f0fcf5;
+  border-color:#a5cdb5;
+}
+#picture-column .picture-card .word{
+  font-size:.8rem;
+  line-height:1.2;
+}
+@media(max-width:420px){
+  #picture-column .picture-card > img{width:64px;height:64px}
+  #picture-column .picture-card .emoji{font-size:2.5rem}
+}
+
+
+/* Smaller visible glyphs, with a larger invisible finger target. */
+#picture-column .picture-card .picture-actions{
+  top:7px;
+  left:7px;
+  right:7px;
+}
+#picture-column .picture-card .picture-actions button{
+  position:relative;
+  width:30px;
+  height:30px;
+  min-width:30px;
+  min-height:30px;
+  font-size:1rem;
+  border-radius:9px;
+}
+#picture-column .picture-card .picture-actions button::before{
+  content:"";
+  position:absolute;
+  inset:-7px;
+}

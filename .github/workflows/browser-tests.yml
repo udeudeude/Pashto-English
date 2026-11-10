@@ -13,6 +13,10 @@ concurrency:
 jobs:
   browser-tests:
     runs-on: ubuntu-latest
+    # Official version-matched image has Chromium, WebKit and system libraries.
+    # Prevents every change from downloading browsers and apt dependencies.
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -29,8 +33,6 @@ jobs:
         run: npm run test:visual
       - name: Test readable recognition failure messages
         run: npm run test:speech-errors
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
       - name: Test mobile browsers
         run: npm test
       - name: Upload traces after failure

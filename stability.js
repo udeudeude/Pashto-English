@@ -6,7 +6,7 @@ const related={top:['lid','cap','roof','shelf'],shelf:['rack','bookcase','cabine
 const sounding={top:['tap','tip','pot'],shelf:['self','shell'],cashew:['cash'],jar:['jaw','car'],ladder:['latter','letter'],reach:['rich','beach']};
 const symbols={ladder:'🪜',jar:'🫙',cashew:'❔',shelf:'📚',lid:'🫙',cap:'🧢',roof:'🏠',rack:'📚',bookcase:'📚',cabinet:'🗄️',almond:'🌰',peanut:'🥜',walnut:'🌰',bottle:'🍾',glass:'🥛',container:'📦',stairs:'🪜',step:'🪜',stool:'🪑',stretch:'🙆',touch:'👆',grab:'🤲',tap:'🚰',tip:'💡',pot:'🍲',self:'🧍',shell:'🐚',cash:'💵',jaw:'🦷',car:'🚗',latter:'🔤',letter:'✉️',rich:'💰',beach:'🏖️'};
 const ps={ladder:'زینه',cashew:'کاجو',jar:'جار',shelf:'طاقچه',house:'کور',water:'اوبه',book:'کتاب',school:'ښوونځی',car:'موټر',mother:'مور',father:'پلار',tea:'چای',bread:'ډوډۍ',help:'مرسته'};
-const cache=new Map(),chosen=new Map();let sentence='',serial=0;
+const cache=new Map(),chosen=new Map(),rejected=new Set();let sentence='',serial=0;
 const overlay=document.createElement('div');overlay.className='picture-sheet';overlay.hidden=true;overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
 const inner=document.createElement('section');inner.className='picture-sheet-inner';
 const close=document.createElement('button');close.className='picture-sheet-close';close.type='button';close.textContent='Close / بندول';
@@ -22,11 +22,37 @@ function image(src,name){
  const img=document.createElement('img');img.src=src;img.alt=name;img.draggable=false;
  img.onerror=()=>img.replaceWith(emoji('❔'));return img;
 }
+function updateRejectButton(card){
+ const toggle=card.querySelector('.picture-action-reject');
+ if(!toggle)return;
+ const isRejected=card.classList.contains('picture-rejected');
+ const glyph=isRejected?'↶':'×';
+ const name=isRejected?'Undo picture rejection / د انځور ردول بېرته اخیستل':'Gray out picture / انځور خړول';
+ if(toggle.textContent!==glyph)toggle.textContent=glyph;
+ toggle.setAttribute('aria-label',name);
+ toggle.setAttribute('title',name);
+ toggle.setAttribute('aria-pressed',String(isRejected));
+}
+function setRejected(card,isRejected,showSlash=true){
+ const key=card.dataset.pictureKey||card.dataset.word;
+ if(isRejected)rejected.add(key);else rejected.delete(key);
+ card.classList.toggle('picture-rejected',isRejected);
+ card.querySelector('.picture-stroke')?.remove();
+ updateRejectButton(card);
+ if(!isRejected||!showSlash)return;
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+ svg.classList.add('picture-stroke');svg.setAttribute('viewBox','0 0 100 100');
+ const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+ for(const [k,v] of Object.entries({
+  x1:'8',y1:'8',x2:'92',y2:'92',stroke:'#d92d20','stroke-width':'7','stroke-linecap':'round'
+ }))line.setAttribute(k,v);
+ svg.append(line);card.append(svg);
+ setTimeout(()=>svg.remove(),700);
+}
 function apply(card,choice){
  const old=card.querySelector(':scope > img, :scope > .emoji');if(!old)return;
  old.replaceWith(choice.kind==='image'?image(choice.url,choice.word):emoji(choice.symbol));
- card.classList.remove('picture-rejected');
- card.querySelector('.picture-stroke')?.remove();
+ setRejected(card,false,false);
  card.querySelector('.picture-choice-note')?.remove();
  // A related or similar-sounding picture depicts another concept. Make that
  // visible, rather than quietly relabeling it as the recognized word.
@@ -36,13 +62,7 @@ function apply(card,choice){
   card.querySelector('.picture-actions')?.before(note);
  }
 }
-function reject(card){
- card.classList.add('picture-rejected');chosen.delete(card.dataset.word);
- const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('picture-stroke');svg.setAttribute('viewBox','0 0 100 100');
- const line=document.createElementNS('http://www.w3.org/2000/svg','line');
- for(const [key,val] of Object.entries({x1:'8',y1:'8',x2:'92',y2:'92',stroke:'#d92d20','stroke-width':'7','stroke-linecap':'round'}))line.setAttribute(key,val);
- svg.append(line);card.append(svg);setTimeout(()=>svg.remove(),700);
-}
+function reject(card){setRejected(card,true)}
 // Every category prefers actual public pictograms; emoji are only a last resort.
 function group(en,pa){
  const section=document.createElement('section');section.className='picture-choice-group';
@@ -153,33 +173,59 @@ async function openOptions(card){
  grid.append(disclaimer);
 }
 
-function enhance(card){
+function enhance(card,key){
  if(card.dataset.controls==='active')return;
  const label=card.querySelector('.word')?.textContent?.trim();if(!label)return;
- card.dataset.controls='active';card.dataset.word=label;
+ card.dataset.controls='active';
+ card.dataset.word=label;
+ card.dataset.pictureKey=key;
  for(const img of card.querySelectorAll('img'))img.draggable=false;
  const actions=document.createElement('div');actions.className='picture-actions';
- const wrong=document.createElement('button');wrong.type='button';wrong.textContent='✕';wrong.setAttribute('aria-label','Reject illustration / انځور ردول');
- const alternatives=document.createElement('button');alternatives.type='button';alternatives.textContent='▦';alternatives.setAttribute('aria-label','Alternative pictures / نور انځورونه');
- wrong.onclick=()=>reject(card);alternatives.onclick=()=>openOptions(card);
- actions.append(wrong,alternatives);card.append(actions);
+ const wrong=document.createElement('button');
+ wrong.type='button';wrong.className='picture-action-reject';
+ wrong.textContent='×';
+ const alternatives=document.createElement('button');
+ alternatives.type='button';alternatives.className='picture-action-alternatives';
+ alternatives.textContent='▦';
+ alternatives.setAttribute('aria-label','Alternative pictures / نور انځورونه');
+ alternatives.title='Alternative pictures / نور انځورونه';
+ wrong.onclick=()=>setRejected(card,!card.classList.contains('picture-rejected'));
+ alternatives.onclick=()=>openOptions(card);
+ actions.append(wrong,alternatives);
+ card.append(actions);
+ const wasRejected=rejected.has(key);
  if(chosen.has(label))apply(card,chosen.get(label));
+ if(wasRejected)setRejected(card,true,false);
+ else updateRejectButton(card);
+ // Safari must be allowed to scroll the left rail. Touch handlers are passive:
+ // do not preventDefault on the card or intercept vertical scrolling.
  let point=null,timer=0;
  const clear=()=>{clearTimeout(timer);timer=0};
  card.addEventListener('touchstart',e=>{
   if(e.target.closest('button')||e.touches.length!==1)return;
-  e.preventDefault();clear();const t=e.touches[0];point={x:t.clientX,y:t.clientY};
-  timer=setTimeout(()=>{if(point){point=null;openOptions(card)}},550);
- },{passive:false});
+  clear();
+  const t=e.touches[0];point={x:t.clientX,y:t.clientY};
+  timer=setTimeout(()=>{
+   if(point){point=null;openOptions(card)}
+  },650);
+ },{passive:true});
  card.addEventListener('touchmove',e=>{
-  if(!point)return;e.preventDefault();const t=e.touches[0];
-  if(Math.hypot(t.clientX-point.x,t.clientY-point.y)>14)clear();
- },{passive:false});
+  if(!point||e.touches.length!==1)return;
+  const t=e.touches[0];
+  if(Math.hypot(t.clientX-point.x,t.clientY-point.y)>12)clear();
+ },{passive:true});
  card.addEventListener('touchend',e=>{
-  if(!point){clear();return}e.preventDefault();clear();
-  const t=e.changedTouches[0],dx=t.clientX-point.x,dy=t.clientY-point.y;point=null;
-  if(Math.abs(dx)>28&&Math.abs(dy)>28)reject(card);
- },{passive:false});
+  if(!point){clear();return}
+  clear();
+  const t=e.changedTouches[0];
+  const dx=t.clientX-point.x,dy=t.clientY-point.y;
+  point=null;
+  // Only a deliberate, mostly horizontal diagonal marks rejection.
+  // A primarily vertical swipe always remains a native scroll gesture.
+  if(Math.abs(dx)>40&&Math.abs(dy)>12&&Math.abs(dx)>Math.abs(dy)*1.4){
+   setRejected(card,true);
+  }
+ },{passive:true});
  card.addEventListener('touchcancel',()=>{point=null;clear()});
  card.addEventListener('contextmenu',e=>{e.preventDefault();openOptions(card)});
  card.addEventListener('dragstart',e=>e.preventDefault());
@@ -187,8 +233,21 @@ function enhance(card){
 function sync(){
  const list=document.querySelector('#picture-column .picture-stack');if(!list)return;
  const current=($('original')?.textContent||'')+'|'+($('result')?.textContent||'');
- if(current!==sentence){sentence=current;chosen.clear()}
- for(const card of list.querySelectorAll('.picture-card'))enhance(card);
+ if(current!==sentence){
+  sentence=current;
+  chosen.clear();
+  rejected.clear();
+  const rail=document.getElementById('picture-column');
+  if(rail)rail.scrollTop=0;
+ }
+ const occurrences=new Map();
+ for(const card of list.querySelectorAll('.picture-card')){
+  const word=card.querySelector('.word')?.textContent.trim();
+  if(!word)continue;
+  const occurrence=occurrences.get(word)||0;
+  occurrences.set(word,occurrence+1);
+  enhance(card,word+'#'+occurrence);
+ }
 }
 const observer=new MutationObserver(sync);observer.observe(document.body,{childList:true,subtree:true});sync();
 window.pashtoDiagnostics=()=>({
