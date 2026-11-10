@@ -91,3 +91,14 @@ Words not in the curated catalog are not silently discarded: the app searches AR
 The public image sources depend on connectivity and licenses. Missing online pictograms are not evidence that a word was missing from the speech transcript.
 
 The iPhone screenshot in November 2026 also exposed a separate **Pashto speech recognition WebAssembly startup error**. Its interface wording is now concise and bilingual, but the backend failure itself has not yet been resolved. The experimental speech recognizer must still be tested on real devices.
+
+## Scrolling and correcting picture cards
+
+1. **Scroll the pictures:** Swipe up or down directly in the left picture column to see the full list, independently from the translation panel. This is intended to work in iPhone Safari and Android Chrome; automated browser checks passed, but physical-device confirmation remains necessary.
+2. **Reject and undo:** Tap the tiny **×** symbol on a picture to gray it out; tap **↶** in the same position to restore that picture. A mostly horizontal diagonal swipe can still mark it unsuitable. Rejecting a picture never changes the spoken word or translation.
+3. **Find alternatives:** Tap the small grid symbol on the picture or press and hold the picture to search for alternatives. Choosing another picture replaces only the illustration.
+4. **Compact controls:** Both buttons occupy the card corners, not an extra row beneath every picture. The visible glyphs are 30 pixels wide; their touch-sensitive regions extend farther.
+
+The card's controls are meant to be bilingual through accessibility labels. Keep the rail vertically pannable: avoid `touch-action:none` or `preventDefault()` in card touch-start/move handlers, because those previously prevented scrolling on Safari.
+
+The mobile regression suite uses a version-pinned official Playwright container (`mcr.microsoft.com/playwright:v1.65.0-noble`) for predictable Chromium and WebKit dependencies. Browser tests validate synthetic gestures and scrolling layout, not real-finger behavior on an actual device.

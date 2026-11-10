@@ -2,10 +2,11 @@
 
 Updated: 2026-11-09
 
-## Picture usability follow-up: pull request #6 (in review)
+## Picture usability follow-up: pull request #6 (merged)
 
-Development branch: `fix/scroll-undo-compact-picture-controls`
-Pull request: https://github.com/udeudeude/Pashto-English/pull/6
+Development branch: `fix/scroll-undo-compact-picture-controls` (merged into `main`)
+Merged pull request: https://github.com/udeudeude/Pashto-English/pull/6
+Squash merge commit: `90dbb61491b46e9379478f9c434ea9c83b217b1d`
 
 An iPhone user identified three practical issues: pictograms below the bottom of the viewport could not be reached; a rejected picture could not be restored; and two large controls underneath every pictogram wasted vertical space.
 
@@ -16,7 +17,7 @@ Implementation:
 - Move both controls into the picture card corners, reducing visible glyph size without reducing finger-sized interactive regions.
 - Add automated WebKit/Chromium tests for scrollable picture overflow, restoration, persistence after redraw, compact card geometry and vertical-versus-diagonal touch behavior.
 
-**Release gate:** Wait for the latest PR #6 browser tests and the Pashto voice regression check to pass before merging. Real iPhone Safari touch scrolling still requires a physical-device observation. The tests exercise layout and synthetic gesture classification but cannot fully simulate the finger-pan compositor.
+**Verified and merged:** Pull request #6 passed **42 Playwright mobile browser tests** (WebKit and Chromium), all JavaScript and unit checks, and separate non-silent Pashto waveform generation. The initial browser jobs stalled while downloading system/browser dependencies. We replaced that step with a version-matched official Playwright image (`mcr.microsoft.com/playwright:v1.65.0-noble`), which passed and makes subsequent testing more reliable. Real iPhone Safari touch scrolling remains to be checked on a physical phone: browser tests cover layout and synthetic gesture classification, not the real finger-pan compositor.
 
 ## Start here
 
@@ -26,7 +27,7 @@ Implementation:
 - **Last completed development branch:** `fix/shared-translation-and-self-test` (merged into `main`)
 - **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/3
 - **Latest merged image fix:** https://github.com/udeudeude/Pashto-English/pull/4, branch `fix/real-picture-alternatives` (merged into `main`).
-- **Most recent merged improvement:** https://github.com/udeudeude/Pashto-English/pull/5, branch `improve/picture-coverage-and-title`, merged into `main` at `7e2d4bc6d2eb757501727da05840df452050db1d`.
+- **Latest merged usability fix:** https://github.com/udeudeude/Pashto-English/pull/6, branch `fix/scroll-undo-compact-picture-controls`, merged into `main` at `90dbb61491b46e9379478f9c434ea9c83b217b1d`.
 
 Future ChatGPT Work and Chat sessions should check the latest branch, open pull requests, test results and this file **before doing new work**. Do not repeat implemented features. PR #3 was merged after green checks; review newly opened PRs before starting work.
 
