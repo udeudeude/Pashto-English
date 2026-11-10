@@ -1,3 +1,4 @@
+import {explainPashtoRecognitionFailure} from './lib/speech-errors.mjs';
 // Experimental on-device Pashto recognition using multilingual Whisper.
 // Remote model loads only on first recording, never during page startup.
 // Both language paths use the shared translation/replay controller.
@@ -72,7 +73,8 @@ pashtoButton.onclick=async()=>{
    const transcript=await recognize(pcm);
    await app.process(transcript,'ps',session);
   }catch(error){
-   app.fail('Pashto recognition unavailable: '+(error?.message||String(error)),session);
+   console.error('Pashto speech recognition failed (technical details)',error);
+   app.fail(explainPashtoRecognitionFailure(error),session);
   }
  };
  try{recorder.start()}

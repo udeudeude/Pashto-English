@@ -81,3 +81,13 @@ ARASAAC pictograms are created by **Sergio Palao**, owned by the **Government of
 Iconify hosts existing icon collections; **each icon collection has its own license**, rather than sharing one Iconify-wide license: https://iconify.design/docs/icons/icon-set-basics.html . For example, Material Design Icons (including the verified bookshelf and library-shelves icons) are distributed under Apache 2.0.
 
 If external image searches are unavailable, the interface retains simplified symbols, but does not intentionally illustrate *cashew* using a peanut or *shelf* using a stack of books. Existing images are suggestions until their contextual appropriateness has been checked.
+
+## Picture coverage and title layout (November 2026)
+
+The application shows its English name and Pashto name on **two separate lines** at phone widths. Visual concepts are in English sentence order. A larger catalog of over 200 additional common nouns, verbs, adjectives, time words, classroom and household concepts is maintained in `lib/visual-language.mjs`.
+
+Words not in the curated catalog are not silently discarded: the app searches ARASAAC and Iconify for pictures labeled with the English term, and adds a card only if an image actually loads. It does not invent images or depict a different concept without labeling the difference. Grammar words such as *the*, *you*, and auxiliary *have* ordinarily do not get separate images, because an isolated illustration would be misleading. Compound concepts such as *thank you* and *bus stop* are treated as a phrase when possible.
+
+The public image sources depend on connectivity and licenses. Missing online pictograms are not evidence that a word was missing from the speech transcript.
+
+The iPhone screenshot in November 2026 also exposed a separate **Pashto speech recognition WebAssembly startup error**. Its interface wording is now concise and bilingual, but the backend failure itself has not yet been resolved. The experimental speech recognizer must still be tested on real devices.

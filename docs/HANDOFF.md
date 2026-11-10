@@ -9,7 +9,8 @@ Updated: 2026-11-09
 - Production branch: `main`
 - **Last completed development branch:** `fix/shared-translation-and-self-test` (merged into `main`)
 - **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/3
-- **Latest merged image fix:** https://github.com/udeudeude/Pashto-English/pull/4, branch `fix/real-picture-alternatives` (merged into `main`, commit `89a03f166cca4d76af262396a85944b2c0ca5263`).
+- **Latest merged image fix:** https://github.com/udeudeude/Pashto-English/pull/4, branch `fix/real-picture-alternatives` (merged into `main`).
+- **Current improvement pull request:** https://github.com/udeudeude/Pashto-English/pull/5, branch `improve/picture-coverage-and-title`.
 
 Future ChatGPT Work and Chat sessions should check the latest branch, open pull requests, test results and this file **before doing new work**. Do not repeat implemented features. PR #3 was merged after green checks; review newly opened PRs before starting work.
 
@@ -64,3 +65,16 @@ A November 9 iPhone screenshot showed that the picker offered only emoji. Source
 Pull request #4 adds browser regression tests using mocked source endpoints. **Verified:** 26 Playwright mobile tests passed across iPhone-sized WebKit and Android-sized Chromium, including tests that real image elements appear in all three picker categories, and that a cashew is not silently represented by a peanut. Pashto waveform tests also passed. These browser tests mock external image endpoints and do not prove public providers will respond on a physical iPhone. Inspect the live iPhone site and confirm the bookshelf appears as a real pictogram rather than an emoji. The app needs a better way to evaluate and retain semantic correctness of pictures; a successful image load is not proof of a good semantic match.
 
 Do not create or edit graphics to solve this; use existing appropriately licensed image resources.
+
+## Current in-review improvement: PR #5
+
+A user iPhone screenshot revealed substantial omissions from the vertical picture column and a page heading that wrapped English and Pashto into the same broken line. PR #5:
+
+1. Renders English and Pashto app titles on separate explicit lines using proper writing direction.
+2. Adds 200+ more curated meaningful English concepts and inflections in `lib/visual-language.mjs`.
+3. Looks up formerly unseen meaning-bearing words with ARASAAC and Iconify; cards for unknown words only appear after a genuinely matching pictogram loads. Existing known words retain their fallback symbols.
+4. Preserves the original English concept order and avoids fabricating pictures for primarily grammatical words.
+5. Includes Node and Playwright regression tests for title layout, word order, expansion, on-demand images, and not confusing a cashew with a peanut.
+6. Replaces large raw Pashto WebAssembly failure messages with concise English/Pashto error messages. **This does not resolve the underlying WebAssembly backend failure.**
+
+**Next action:** verify the latest checks for PR #5, fix regressions, merge when green and inspect the deployed iPhone site. Continue work on Pashto recognizer backend reliability separately. Never claim model startup was fixed by changing the wording alone.
