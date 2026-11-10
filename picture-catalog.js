@@ -54,7 +54,7 @@
    const target=normalize(query);
    // Search may return broader topics: demand at least a labeled match.
    return labels.some(x=>x===target||x.endsWith(' '+target)||x.startsWith(target+' ')||
-     x.replace(/\s+/g,'').includes(target.replace(/\s+/g,'')));
+     x.includes(' '+target+' '));
  }
  async function arasaac(term,max){
    const queries=[term,...(queryAliases[normalize(term)]||[])];
