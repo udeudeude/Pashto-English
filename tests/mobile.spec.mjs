@@ -303,3 +303,13 @@ test('do not invent icons for purely grammatical words or unrelated search resul
  await expect(page.locator('#picture-column .picture-card').filter({hasText:'mysterious'})).toHaveCount(0);
  await expect(page.locator('#picture-column .picture-card').filter({hasText:'you'})).toHaveCount(0);
 });
+
+test('a table is not depicted by a chair when image providers are unavailable',async({page})=>{
+ await page.evaluate(()=>{
+  document.getElementById('original').textContent='I need a table';
+  const result=document.getElementById('result');result.lang='ps';result.textContent='د ازموینې ژباړه';
+ });
+ const card=page.locator('#picture-column .picture-card').filter({hasText:'table'});
+ await expect(card).toHaveCount(1);
+ await expect(card.locator('.emoji')).toHaveText('❔');
+});
