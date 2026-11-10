@@ -30,6 +30,12 @@
    self:['person']
  };
  const cache=new Map();
+ const health={arasaac:'idle',iconify:'idle'};
+ function mark(source,state){
+   if(health[source]===state)return;
+   health[source]=state;
+   window.dispatchEvent(new CustomEvent('picture-source-state',{detail:{...health}}));
+ }
  const normalize=x=>String(x||'').trim().toLowerCase();
  const imageUrl=id=>'https://static.arasaac.org/pictograms/'+id+'/'+id+'_300.png';
  const iconUrl=id=>{
@@ -56,23 +62,31 @@
    return labels.some(x=>x===target||x.endsWith(' '+target)||x.startsWith(target+' ')||
      x.includes(' '+target+' '));
  }
+ const actionWords=new Set('look see read open close help walk run jump ask speak listen give take write eat drink sit stand reach wash show point'.split(' '));
  async function arasaac(term,max){
    const queries=[term,...(queryAliases[normalize(term)]||[])];
    const results=[];
+   let responded=false,failed=false;
    for(const query of queries.slice(0,2)){
      try{
        const data=await json(api+encodeURIComponent(query));
-       if(!Array.isArray(data))continue;
+       responded=true;
+       if(!Array.isArray(data))throw Error('Unexpected ARASAAC response');
        for(const item of data){
          const id=item?._id;
          if(!Number.isInteger(id)||!searchMatches(item,query))continue;
-         results.push({kind:'image',word:term,source:'ARASAAC',url:imageUrl(id)});
-         if(results.length>=max)break;
+         const matches=(item.keywords||[]).filter(k=>normalize(k.keyword)===normalize(query));
+         const type=actionWords.has(normalize(term))?3:2;
+         const matchScore=matches.length?10:1;
+         const senseScore=matches.some(k=>k.type===type)?3:0;
+         results.push({kind:'image',word:term,source:'ARASAAC',url:imageUrl(id),score:matchScore+senseScore});
        }
-     }catch(e){/* A blocked pictogram service must not disable the picker. */}
+     }catch(error){failed=true}
      if(results.length>=max)break;
    }
-   return distinct(results).slice(0,max);
+   mark('arasaac',responded?'ok':failed?'error':'ok');
+   return distinct(results.sort((a,b)=>b.score-a.score)).slice(0,max)
+     .map(({score,...candidate})=>candidate);
  }
  function iconSearchMatches(id,query){
    const basename=id.split(':').slice(1).join(':').toLowerCase();
@@ -86,6 +100,7 @@
    }));
    try{
      const data=await json(iconApi+'search?query='+encodeURIComponent(term)+'&limit=48',6500);
+     mark('iconify','ok');
      if(Array.isArray(data?.icons)){
        for(const id of data.icons){
          if(typeof id!=='string'||!/^[a-z0-9-]+:[a-z0-9-]+$/i.test(id))continue;
@@ -95,26 +110,36 @@
          known.push({kind:'image',word:term,source:'Iconify',url:iconUrl(id)});
        }
      }
-   }catch(e){/* Curated icon URLs remain available when search is offline. */}
+   }catch(e){mark('iconify','error');/* Curated icon URLs remain available when search is offline. */}
    return distinct(known).slice(0,max);
  }
- async function find(term,{max=8,prefer='arasaac'}={}){
+ async function find(term,{max=8}={}){
    const normalized=normalize(term);
    if(!normalized||!/^[a-z][a-z -]{0,55}$/i.test(normalized))return [];
-   const key=normalized+'|'+max+'|'+prefer;
+   const key=normalized+'|'+max;
    if(cache.has(key))return cache.get(key);
    const promise=(async()=>{
-     const [pictograms,vectorIcons]=await Promise.all([arasaac(normalized,max),icons(normalized,Math.min(max,6))]);
-     return distinct((prefer==='iconify'?[...vectorIcons,...pictograms]:[...pictograms,...vectorIcons])).slice(0,max);
+     // Reserve places for BOTH providers. Previously an abundant ARASAAC
+     // search filled the entire list before Iconify was considered.
+     const pictogramLimit=Math.max(1,Math.ceil(max*.6));
+     const iconLimit=Math.max(1,max-pictogramLimit);
+     const [pictograms,vectorIcons]=await Promise.all([
+       arasaac(normalized,pictogramLimit),
+       icons(normalized,iconLimit)
+     ]);
+     return distinct([...pictograms,...vectorIcons]).slice(0,max);
    })();
    cache.set(key,promise);
-   // Cache only successful results. A failed connection or empty search should be retried.
-   promise.then(result=>{if(!result.length)cache.delete(key)},()=>cache.delete(key));
+   // If ARASAAC is unavailable, retry on the next request instead of
+   // caching an Iconify-only fallback indefinitely.
+   promise.then(result=>{
+     if(!result.length||health.arasaac==='error')cache.delete(key)
+   },()=>cache.delete(key));
    return promise;
  }
  function immediate(term){
    const word=normalize(term);
    return (directIcons[word]||[]).map(id=>({kind:'image',word,source:'Iconify',url:iconUrl(id)}));
  }
- window.pictureCatalog={find,immediate};
+ window.pictureCatalog={find,immediate,status:()=>({...health})};
 })();
