@@ -83,13 +83,12 @@ const aside=document.createElement('aside');
 aside.id='picture-column';
 aside.className='picture-column';
 aside.setAttribute('aria-label','Illustrations in English word order / انځورونه د انګلیسي کلمو په ترتیب');
-const heading=document.createElement('h2');heading.textContent='Pictures / انځورونه';heading.className='picture-heading';
 const stack=document.createElement('div');stack.className='picture-stack';
 const sourceLabel=document.createElement('p');
 sourceLabel.className='picture-source-label';
 sourceLabel.textContent='ARASAAC + Iconify / د انځور سرچینې';
 sourceLabel.setAttribute('aria-live','polite');
-aside.append(heading,sourceLabel,stack);
+aside.append(sourceLabel,stack);
 window.addEventListener('picture-source-state',event=>{
  const state=event.detail||{};
  const failed=state.arasaac==='error';
