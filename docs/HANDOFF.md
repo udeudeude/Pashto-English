@@ -2,6 +2,13 @@
 
 Updated: 2026-11-09
 
+## Active recognition reliability work
+
+Branch: `fix/pashto-recognition-runtime`, based on main `851203d`. No open pull requests existed at session start; main browser and deployment checks passed.
+
+First correction: memory exhaustion now takes precedence over generic WebAssembly/backend errors, so phones receive the actionable memory explanation. Regression unit test passes. Investigating recognition startup and recording races next. Existing physical-device and fluent-speaker limitations below still apply.
+
+
 ## Picture usability follow-up: pull request #6 (merged)
 
 Development branch: `fix/scroll-undo-compact-picture-controls` (merged into `main`)
