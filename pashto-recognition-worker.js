@@ -1,6 +1,6 @@
 // Remote imports are confined to this disposable worker, never page startup.
 let recognizerPromise;
-self.onmessage=async({data:{id,audio}})=>{
+self.onmessage=async({data:{id,audio,language='pashto'}})=>{
  try{
   self.postMessage({id,type:'progress',stage:'loading'});
   recognizerPromise??=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1')
@@ -13,7 +13,8 @@ self.onmessage=async({data:{id,audio}})=>{
    });
   const recognizer=await recognizerPromise;
   self.postMessage({id,type:'progress',stage:'recognizing'});
-  const result=await recognizer(audio,{language:'pashto',task:'transcribe'});
+  if(!['english','pashto'].includes(language))throw Error('Unsupported recognition language.');
+  const result=await recognizer(audio,{language,task:'transcribe'});
   self.postMessage({id,type:'result',text:String(result.text||'').trim()});
  }catch(error){
   // Parent terminates this worker: resetting only the pipeline promise cannot
