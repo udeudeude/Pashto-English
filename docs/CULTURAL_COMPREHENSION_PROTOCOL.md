@@ -1,28 +1,24 @@
-# Afghan Pashto cultural comprehension study protocol
+# Cultural and linguistic audit: independent verification protocol
 
-Status: **not yet conducted**. This protocol is a research plan, not evidence of speaker validation.
+**Policy:** Development, automated testing, merging and release must never depend on access to Pashto-speaking human testers. Native-speaker review may be incorporated when available, but it is optional additional evidence. Never describe machine-based evidence as native-speaker validation.
 
-## Participants and consent
+## Repeatable evidence sources
 
-Recruit consenting adult Afghan Pashto speakers across regional varieties, age groups and literacy experiences, including adults who do not read. Avoid treating any participant as representative of all Afghan speakers. Participation is voluntary; allow skipping any prompt and withdrawal at any point. Do not collect names, contact information, voice recordings, or identifying details in this public repository. Arrange a private, consented study record separately if needed.
+1. Prefer independently published Afghan Pashto dictionaries, grammars, educational materials, bilingual examples and appropriately licensed speech corpora. Record exact source, date, dialect and licensing restrictions.
+2. Build contextual test fixtures for greetings, requests, refusals, negation, kinship, honorifics, classroom instructions, health, emergencies and ambiguous English words. Check both translation directions and preserve source texts.
+3. Compare independent translation systems where legally and technically possible. Disagreement is a review signal; agreement does not establish truth.
+4. Test picture candidates for exact English concept, grammatical sense, contextual ambiguity and accessibility. Do not assume pictogram provider ranking or gesture etiquette claims establish Afghan interpretation.
+5. For speech recognition, use published recordings with independent reference transcripts and report error rates by available dialect and recording condition. For synthesis, measure non-silence, clipping, duration and phonetic correspondence where references exist; these cannot establish intelligibility.
+6. Run physical-device accessibility and microphone privacy checks when devices are available, without requiring Pashto-speaking participants.
 
-## Image comprehension: unprompted first
+## Evidence and decisions
 
-1. Present each candidate image **without** its English label, Pashto label or provider name. Randomize order and avoid displaying the English prompt first.
-2. Ask the participant to explain what it means, or demonstrate the meaning. Record the meaning in the participant's preferred language through a fluent facilitator. Avoid leading questions.
-3. Ask how confident they are and whether the meaning changes by context or who is using the gesture.
-4. Only then disclose the intended English concept, and ask whether the image would communicate that concept in a real conversation.
-5. For gestures, distinguish recognition of foreign media conventions from locally customary use; never presume universal offense or approval.
-6. Compare at least two alternative images for ambiguous or high-stakes concepts, including `okay`, `medicine`, `pain`, `emergency`, `danger`, `old`, `like` and `play`.
+Use `audits/cultural-findings.json` as the canonical evidence register. Distinguish hypotheses, documented research, and optional speaker validation. A finding may be **remediated** on reproducible documentary and automated evidence without claiming that cultural comprehension has been empirically proven. Preserve regional disagreement and uncertainty. For high-stakes content, prefer explicit speech/text over ambiguous images, and never silently change translations based on pictures.
 
-## Spoken dialogue and accessibility
+Every change should have a source reference or reproducible test, a stated confidence limitation, and a regression check. Missing human participants is **not** a blocker or failure condition.
 
-Evaluate both English-to-Pashto and Pashto-to-English for greetings, requests, refusals, negation, kinship, honorifics, classroom instructions, medical needs, and emergency requests. Ask for spontaneous paraphrase of the **audio** before showing any text. Evaluate recognition, translation, and synthesized voice independently. Include dialect/context notes and disagreements. For nonreading participants, test the entire workflow without written instructions and without an assistant operating the phone for them.
+## Optional research, never a dependency
 
-## Scoring and acceptance
+If consenting Afghan Pashto speakers voluntarily become available, image-only unprompted comprehension, audio-only paraphrase and low-literacy usability studies can provide additional evidence. Keep participant data private, report aggregate findings, and do not generalize a small sample to all speakers. No such study is scheduled or assumed.
 
-For each trial record a nonidentifying participant code, task identifier, context, dialect (optional), original response, intended meaning, unprompted comprehension (correct / partially correct / incorrect / unclear), prompted agreement separately, and qualitative explanation. Publish aggregate counts and disagreements, not personal recordings. Do not label an item `speaker-validated` on the basis of a single speaker, prompted agreement, or automated translation. Require independent reviewers and document sampling limitations. High-stakes terms remain under review until scenario-level comprehension and bilingual accuracy are demonstrated. Do not describe the app as certified for medical or emergency interpretation.
-
-## Engineering follow-through
-
-Use `audits/cultural-findings.json` to track evidence and remediation; `lib/cultural-review.mjs` attaches nonintrusive review metadata to selected vocabulary. Do not turn these hypotheses into hard-coded prohibitions. Each implemented correction needs a regression test and review of both language directions. Issue #14 is the canonical tracking issue.
+Issue #14 tracks the cultural audit. This protocol supersedes the previous participant-recruitment plan.
