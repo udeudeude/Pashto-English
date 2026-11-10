@@ -453,12 +453,16 @@ test('linked homepage previews and app-sharing QR are displayed at the bottom', 
  const qr=share.locator('img');
  await qr.scrollIntoViewIfNeeded();
  await expect.poll(()=>qr.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
- const bottomOrder=await page.evaluate(()=>{
-   const footer=document.querySelector('footer'),share=document.querySelector('.share-section'),resources=document.querySelector('.resource-section');
-   const selftest=document.querySelector('#self-test');
-   return [selftest,resources,share,footer].map(el=>Array.from(document.querySelectorAll('main > *')).indexOf(el));
+ const ordered=await page.evaluate(()=>{
+   const nodes=[
+     document.querySelector('#self-test'),
+     document.querySelector('.resource-section'),
+     document.querySelector('.share-section'),
+     document.querySelector('footer')
+   ];
+   return nodes.every((node,i)=>i===nodes.length-1||Boolean(
+     node.compareDocumentPosition(nodes[i+1])&Node.DOCUMENT_POSITION_FOLLOWING
+   ));
  });
- expect(bottomOrder[0]).toBeLessThan(bottomOrder[1]);
- expect(bottomOrder[1]).toBeLessThan(bottomOrder[2]);
- expect(bottomOrder[2]).toBeLessThan(bottomOrder[3]);
+ expect(ordered).toBe(true);
 });
