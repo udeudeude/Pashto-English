@@ -120,3 +120,25 @@
   #picture-column .picture-card > img{width:64px;height:64px}
   #picture-column .picture-card .emoji{font-size:2.5rem}
 }
+
+
+/* Smaller visible glyphs, with a larger invisible finger target. */
+#picture-column .picture-card .picture-actions{
+  top:7px;
+  left:7px;
+  right:7px;
+}
+#picture-column .picture-card .picture-actions button{
+  position:relative;
+  width:30px;
+  height:30px;
+  min-width:30px;
+  min-height:30px;
+  font-size:1rem;
+  border-radius:9px;
+}
+#picture-column .picture-card .picture-actions button::before{
+  content:"";
+  position:absolute;
+  inset:-7px;
+}
