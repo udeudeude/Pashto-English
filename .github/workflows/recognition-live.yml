@@ -5,6 +5,7 @@ on:
     paths:
       - 'pashto-recognition-worker.js'
       - 'lib/recognition-client.mjs'
+      - 'lib/recognition-engine.mjs'
       - 'tests/recognition-live.spec.mjs'
       - '.github/workflows/recognition-live.yml'
 concurrency:
