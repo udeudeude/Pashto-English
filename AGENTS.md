@@ -13,7 +13,7 @@ The left picture column displays concepts in the order of their **English** occu
 ## Current architecture and known limitations
 
 - `index.html` contains the main interface, English browser recognition, text translation, and playback.
-- `visual-vocabulary.js` creates the picture column. It is a limited English lexicon, not a full parser.
+- `visual-vocabulary.js` creates the picture column. `lib/visual-language.mjs` extends the curated English concepts, filters grammar words, handles inflections and seeks real pictures for otherwise unrecognized meaning-bearing terms. Neither is a full linguistic parser, and more images do not automatically imply semantic correctness.
 - `stability.js` provides visible reject/alternatives buttons and optional swipe/hold gestures. `stability.css` contains its styles. `picture-catalog.js` is the shared provider for real ARASAAC and Iconify images in the main column **and** all picker categories. Emoji are fallbacks, not preferred illustrations. These files must load independently of remote speech-model libraries.
 - `pashto-recognition.js` experimentally loads Whisper on demand. Accuracy and runtime on phones **remain unverified**.
 - Pashto speech synthesis: **experimental self-hosted eSpeak NG build** in `vendor/pashto-voice/` merged in pull request #2 and deployed from `main`. **Automated** mobile-sized WebKit/Chromium and Node waveform checks passed. Physical phone testing, speaker intelligibility evaluation, and translation quality remain unverified.
