@@ -479,11 +479,17 @@ test('Pashto microphone error releases capture and leaves retry available',async
  await expect(page.locator('#ps')).toContainText('Stop');
 });
 test('Pashto recording stops automatically after twenty seconds',async({page})=>{
- await page.clock.install();
+ await page.evaluate(()=>{
+  const original=window.setTimeout;
+  window.setTimeout=(callback,delay,...args)=>{
+   if(delay===20_000){window.recordingDeadline=callback;return 0}
+   return original(callback,delay,...args);
+  };
+ });
  await fakePashtoMicrophone(page);
  await page.locator('#ps').click();
  await expect(page.locator('#ps')).toContainText('Stop');
- await page.clock.fastForward(20_001);
+ await page.evaluate(()=>window.recordingDeadline());
  await expect(page.locator('#ps')).toContainText('Speak Pashto');
  await expect(page.locator('#status')).toContainText('No usable speech');
  await expect.poll(()=>page.evaluate(()=>window.captureStats.stops)).toBeGreaterThan(0);
@@ -557,7 +563,7 @@ test('cancelling Pashto while translation is pending prevents late speech and Re
   };
   window.OfflineAudioContext=class{
    createBufferSource(){return {connect(){},start(){}}}
-   async startRendering(){return {getChannelData:()=>new Float32Array(8000)}}
+   async startRendering(){return {getChannelData:()=>new Float32Array(8000).fill(0.01)}}
   };
   window.Worker=class{
    postMessage({id}){queueMicrotask(()=>this.onmessage({data:{id,type:'result',text:'سلام'}}))}

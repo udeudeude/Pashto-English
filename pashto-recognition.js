@@ -2,6 +2,7 @@ import {explainPashtoRecognitionFailure} from './lib/speech-errors.mjs';
 // Experimental on-device Pashto recognition using multilingual Whisper.
 // Remote model loads only on first recording, never during page startup.
 // Both language paths use the shared translation/replay controller.
+import {validateRecognitionAudio} from './lib/recognition-audio.mjs';
 import {createRecognitionClient} from './lib/recognition-client.mjs';
 const client=createRecognitionClient();
 let recording=null,capture=null;
@@ -23,7 +24,7 @@ async function decodeForWhisper(blob){
   const source=offline.createBufferSource();
   source.buffer=audio;source.connect(offline.destination);source.start();
   const rendered=await offline.startRendering();
-  return rendered.getChannelData(0);
+  return validateRecognitionAudio(rendered.getChannelData(0));
  }finally{await context.close().catch(()=>{})}
 }
 function cancelCapture(){
@@ -33,8 +34,9 @@ function cancelCapture(){
   clearTimeout(current.timer);
   if(current.recorder?.state==='recording')current.recorder.stop();
   current.stream?.getTracks().forEach(track=>track.stop());
+  client.cancel();
  }
- recording=null;client.cancel();resetButton();
+ recording=null;resetButton();
 }
 window.addEventListener('pashto-session-start',cancelCapture);
 function cancelSession(){
