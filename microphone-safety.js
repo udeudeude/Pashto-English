@@ -5,11 +5,14 @@
 (()=>{
  'use strict';
  const streams=new Set(),recognizers=new Set();
+ const stoppedStreams=new WeakSet(),stoppedRecognizers=new WeakSet();
  let generation=0;
  const isForeground=()=>!document.hidden&&(typeof document.hasFocus!=='function'||document.hasFocus());
  function stopStream(stream){
   if(!stream)return;
   streams.delete(stream);
+  if(stoppedStreams.has(stream))return;
+  stoppedStreams.add(stream);
   for(const track of stream.getTracks?.()||[]){
    try{track.stop()}catch(error){console.warn('Microphone track stop failed:',error)}
   }
@@ -17,6 +20,8 @@
  function stopRecognition(recognition){
   if(!recognition)return;
   recognizers.delete(recognition);
+  if(stoppedRecognizers.has(recognition))return;
+  stoppedRecognizers.add(recognition);
   // Safari sometimes reports onend without actually releasing its audio
   // session. Force both completion and discard; never rely on onend alone.
   try{recognition.abort()}catch(error){}
@@ -29,7 +34,7 @@
   window.dispatchEvent(new CustomEvent('pashto-microphone-stop',{detail:{reason}}));
  }
  function registerStream(stream,token){
-  if(!stream)return false;
+  if(!stream||stoppedStreams.has(stream))return false;
   if(token!==generation||!isForeground()){
    stopStream(stream);
    return false;
@@ -44,6 +49,7 @@
   return true;
  }
  function registerRecognition(recognition,token){
+  if(stoppedRecognizers.has(recognition))return false;
   if(token!==generation||!isForeground()){
    stopRecognition(recognition);
    return false;
