@@ -1,0 +1,37 @@
+name: Real picture provider smoke test
+on:
+  pull_request:
+    paths:
+      - 'scripts/probe-arasaac.mjs'
+      - 'scripts/test-live-arasaac.mjs'
+      - 'picture-catalog.js'
+      - '.github/workflows/arasaac-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/probe-arasaac.mjs
+  webkit-and-chromium:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Start local application
+        run: nohup python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/pashto-site.log 2>&1 &
+      - name: Test actual ARASAAC and Iconify image loading in browsers
+        run: node scripts/test-live-arasaac.mjs

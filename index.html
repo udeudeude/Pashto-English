@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14283c"><title>Pashto ↔ English / پښتو ↔ انګلیسي</title><link rel="stylesheet" href="./stability.css?v=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14283c"><title>Pashto ↔ English / پښتو ↔ انګلیسي</title><link rel="stylesheet" href="./stability.css?v=2">
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#16283b;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:22px 16px 50px}h1{font-size:1.5rem;margin:0 0 8px}p{line-height:1.45}.muted{color:#536578}.panel{background:white;border:1px solid #dce3e9;border-radius:20px;padding:20px;margin:18px 0}button{font:inherit;cursor:pointer;border:0;border-radius:18px;padding:18px;min-height:76px}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.english{background:#dbe9ff;color:#173f85}.pashto{background:#d8f3e2;color:#125b35}.choices button{font-size:1.35rem;font-weight:750}.choices small{display:block;font-size:.78rem;margin-top:6px}#status{font-weight:650;min-height:3em}#result{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.3rem;min-height:3em}#original{white-space:pre-wrap;overflow-wrap:anywhere}#replay{width:100%;background:#1c3853;color:white}#replay:disabled{background:#9aa6b0}details{margin-top:18px}summary{cursor:pointer}#capabilities{line-height:1.6}footer{font-size:.85rem;color:#526477}button:focus-visible{outline:3px solid #c45c10;outline-offset:3px}
 .content-column h1.app-title{font-size:1.2rem;line-height:1.28;overflow-wrap:normal;word-break:normal}
@@ -196,23 +196,65 @@ async function processTranscript(heard,source,session){
   return false;
  }
 }
+function stopBrowserRecognition(rec){
+ if(!rec)return;
+ if(active===rec)active=null;
+ // Remove callbacks before abort: Safari sometimes delivers a late event.
+ rec.onresult=null;rec.onerror=null;rec.onend=null;
+ try{rec.abort()}catch(error){try{rec.stop()}catch(_){}}
+ $('en').setAttribute('aria-pressed','false');
+}
+function stopMicrophoneWhenHidden(){
+ if(!active)return;
+ // Invalidate late results, so background speech cannot restart playback.
+ ++requestSeq;
+ stopBrowserRecognition(active);
+ setStatus('Microphone stopped because the app is in the background. / د اپ په شالید کې مایکروفون بند شو.');
+}
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden)stopMicrophoneWhenHidden();
+});
+window.addEventListener('pagehide',stopMicrophoneWhenHidden);
 function start(lang){
- if(!Recognition)return;
+ if(!Recognition||document.hidden)return;
+ if(active){
+  ++requestSeq;
+  stopBrowserRecognition(active);
+  setStatus('Microphone stopped. / مایکروفون بند شو.');
+  return;
+ }
  const session=begin(lang);
  const rec=new Recognition();active=rec;
  rec.lang=lang==='ps'?'ps-AF':'en-US';
  rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
+ $('en').setAttribute('aria-pressed','true');
  setStatus(lang==='ps'?'Listening for Pashto…':'Listening for English…');
- rec.onresult=event=>{if(session===requestSeq)processTranscript(event.results?.[0]?.[0]?.transcript,lang,session)};
- rec.onerror=event=>fail('Recognition error: '+event.error+'. Please try again.',session);
- rec.onend=()=>{if(active===rec)active=null};
- try{rec.start()}catch(err){fail('Microphone could not start: '+err.message,session)}
+ rec.onresult=event=>{
+  if(session!==requestSeq||active!==rec)return;
+  const transcript=event.results?.[0]?.[0]?.transcript;
+  stopBrowserRecognition(rec);
+  processTranscript(transcript,lang,session);
+ };
+ rec.onerror=event=>{
+  if(active!==rec)return;
+  stopBrowserRecognition(rec);
+  fail('Recognition error: '+event.error+'. Please try again.',session);
+ };
+ rec.onend=()=>{
+  if(active!==rec)return;
+  active=null;$('en').setAttribute('aria-pressed','false');
+ };
+ try{rec.start()}catch(err){
+  stopBrowserRecognition(rec);
+  fail('Microphone could not start: '+err.message,session);
+ }
 }
 function demo(text,source){
  const session=begin(source);
  return processTranscript(text,source,session);
 }
 window.pashtoApp={begin,process:processTranscript,fail,demo,isCurrent:session=>session===requestSeq};
+$('en').setAttribute('aria-pressed','false');
 $('en').onclick=()=>start('en');
 $('replay').onclick=()=>{
  if(!lastSpeech)return;
@@ -230,4 +272,4 @@ for(const [id,source,phrase] of [
 }
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=capabilityReport;
 capabilityReport();
-</script><script src="./picture-catalog.js?v=1"></script><script type="module" src="./visual-vocabulary.js?v=10"></script><script defer src="./stability.js?v=2"></script><script defer src="./pashto-voice.js?v=1"></script><script type="module" src="./pashto-recognition.js?v=2"></script></body></html>
+</script><script src="./picture-catalog.js?v=2"></script><script type="module" src="./visual-vocabulary.js?v=11"></script><script defer src="./stability.js?v=3"></script><script defer src="./pashto-voice.js?v=1"></script><script type="module" src="./pashto-recognition.js?v=2"></script></body></html>

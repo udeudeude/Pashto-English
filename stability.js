@@ -59,7 +59,7 @@ function apply(card,choice){
  if(choice.word && choice.word!==card.dataset.word){
   const note=document.createElement('small');note.className='picture-choice-note';
   note.textContent='Image: '+choice.word+' / د انځور کلمه: '+choice.word;
-  card.querySelector('.picture-actions')?.before(note);
+  card.querySelector('.picture-caption')?.before(note);
  }
 }
 function reject(card){setRejected(card,true)}
@@ -121,6 +121,8 @@ async function openOptions(card){
  // never has to wait for all remote searches before showing useful pictures.
  const relatedWords=(related[word]||[]).slice(0,6);
  const soundingWords=sourceIsPashto?[]:(sounding[word]||[]).slice(0,5);
+ if(!relatedWords.length)relatedItems.closest('.picture-choice-group').hidden=true;
+ if(!soundingWords.length&&!sourceIsPashto)soundingItems.closest('.picture-choice-group').hidden=true;
  for(const relatedWord of relatedWords)
   for(const choice of catalog?.immediate(relatedWord)||[])add(relatedItems,'related',choice,'Related / اړوند');
  if(sourceIsPashto){
@@ -192,7 +194,11 @@ function enhance(card,key){
  wrong.onclick=()=>setRejected(card,!card.classList.contains('picture-rejected'));
  alternatives.onclick=()=>openOptions(card);
  actions.append(wrong,alternatives);
- card.append(actions);
+ const labelRow=document.createElement('div');
+ labelRow.className='picture-caption';
+ const wordNode=card.querySelector('.word');
+ labelRow.append(wordNode,actions);
+ card.append(labelRow);
  const wasRejected=rejected.has(key);
  if(chosen.has(label))apply(card,chosen.get(label));
  if(wasRejected)setRejected(card,true,false);

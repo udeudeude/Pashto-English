@@ -85,12 +85,17 @@ aside.className='picture-column';
 aside.setAttribute('aria-label','Illustrations in English word order / انځورونه د انګلیسي کلمو په ترتیب');
 const heading=document.createElement('h2');heading.textContent='Pictures / انځورونه';heading.className='picture-heading';
 const stack=document.createElement('div');stack.className='picture-stack';
-const picker=document.createElement('select');picker.setAttribute('aria-label','Picture source / د انځور سرچینه');
-for(const [value,label] of [['arasaac','ARASAAC'],['iconoir','Iconoir'],['emoji','Emoji / ایموجي']]){
- const option=document.createElement('option');option.value=value;option.textContent=label;picker.append(option);
-}
-picker.value='arasaac';
-aside.append(heading,picker,stack);
+const sourceLabel=document.createElement('p');
+sourceLabel.className='picture-source-label';
+sourceLabel.textContent='ARASAAC + Iconify / د انځور سرچینې';
+sourceLabel.setAttribute('aria-live','polite');
+aside.append(heading,sourceLabel,stack);
+window.addEventListener('picture-source-state',event=>{
+ const state=event.detail||{};
+ sourceLabel.textContent=state.arasaac==='error'
+  ?'ARASAAC unavailable; showing Iconify / ARASAAC نه چلېږي؛ Iconify ښودل کېږي'
+  :'ARASAAC + Iconify / د انځور سرچینې';
+});
 const content=document.createElement('div');content.className='content-column';
 while(main.firstChild)content.append(main.firstChild);
 main.append(aside,content);
@@ -99,7 +104,7 @@ style.textContent=`
 .visual-layout{max-width:950px;display:grid;grid-template-columns:minmax(110px,28%) minmax(0,1fr);gap:12px;padding:12px;align-items:start}
 .picture-column{position:sticky;top:8px;max-height:calc(100dvh - 16px);overflow:auto;background:white;border:1px solid #dce3e9;border-radius:16px;padding:10px 6px;min-height:65vh}
 .picture-heading{text-align:center;font-size:1rem;margin:3px 0 8px}
-#picture-column select{width:100%;max-width:100%;font:inherit;font-size:.78rem;margin-bottom:10px}
+.picture-source-label{text-align:center;font-size:.68rem;line-height:1.3;color:#52677d;margin:0 0 10px;overflow-wrap:anywhere}
 .picture-stack{display:flex;flex-direction:column;gap:10px}
 .picture-card{border:1px solid #dce3e9;border-radius:12px;min-height:92px;padding:8px 3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#f8fafc}
 .picture-card img{width:68px;height:68px;object-fit:contain}
@@ -130,7 +135,7 @@ function imageNode(src,emojiFallback){
 }
 // Prefer real pictograms, use emoji only when no matching image is accessible.
 // "shelf" and "cashew" must not be silently replaced with books or peanuts.
-async function availablePicture(item,card,version,sourceName){
+async function availablePicture(item,card,version){
  const catalog=window.pictureCatalog;
  if(!catalog)return;
  let visual=card.querySelector(':scope > img, :scope > .emoji');
@@ -158,7 +163,7 @@ async function availablePicture(item,card,version,sourceName){
  const immediate=catalog.immediate(item.label);
  if(immediate?.length)show(immediate[0]);
  const pictures=await catalog.find(item.label,{
-  max:6,prefer:sourceName==='iconoir'?'iconify':'arasaac'
+  max:8
  }).catch(()=>[]);
  if(!isCurrent()||!pictures.length)return;
  let index=0;
@@ -181,8 +186,8 @@ async function availablePicture(item,card,version,sourceName){
 // Unknown content words are not silently omitted: discover matching
 // pictograms and insert a card only after an actual image loads.
 async function discoverUnknown(item,marker,version){
- if(picker.value==='emoji'){marker.remove();return}
- const pictures=await (window.pictureCatalog?.find(item.label,{max:6,prefer:picker.value==='iconoir'?'iconify':'arasaac'})||Promise.resolve([])).catch(()=>[]);
+ if(!window.pictureCatalog){marker.remove();return}
+ const pictures=await (window.pictureCatalog?.find(item.label,{max:8})||Promise.resolve([])).catch(()=>[]);
  if(version!==renderVersion||!marker.isConnected)return;
  for(const choice of pictures){
   const actual=await new Promise(resolve=>{
@@ -237,15 +242,12 @@ function draw(){
   }
   const card=document.createElement('div');card.className='picture-card';
   const fallback=emojiNode(item.emoji);
-  if(picker.value==='emoji')card.append(fallback);
-  else {
-   card.append(fallback);
-   availablePicture(item,card,version,picker.value);
-  }
-  const label=document.createElement('span');label.className='word';label.textContent=item.label;card.append(label);stack.append(card);
+  card.append(fallback);
+  const label=document.createElement('span');label.className='word';
+  label.textContent=item.label;card.append(label);stack.append(card);
+  availablePicture(item,card,version);
  }
 }
-picker.onchange=draw;
 new MutationObserver(draw).observe(result,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['lang']});
 new MutationObserver(draw).observe(original,{childList:true,characterData:true,subtree:true});
 draw();
