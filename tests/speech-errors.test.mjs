@@ -17,3 +17,8 @@ test('other failures never leak untrusted raw error text into the interface',()=
  assert.match(message,/Pashto speech recognition failed/);
  assert.doesNotMatch(message,/PRIVATE|TRANSCRIPT/);
 });
+test('memory exhaustion takes precedence over generic WebAssembly failure',()=>{
+ const message=explainPashtoRecognitionFailure(new Error('wasm backend: out of memory allocation failed'));
+ assert.match(message,/enough available memory/);
+ assert.doesNotMatch(message,/engine failed to load/);
+});
