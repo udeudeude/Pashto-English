@@ -95,13 +95,14 @@ const voiceFor=lang=>voices().find(v=>v.lang?.toLowerCase().startsWith(lang));
 function capabilityReport(){
  const browserEnglish=!!Recognition;
  const pashtoRecording=!!navigator.mediaDevices?.getUserMedia&&!!window.MediaRecorder;
+ const localEnglish=appleMobile&&pashtoRecording;
  const englishVoice=!!voiceFor('en');
  $('capabilities').textContent=
-  'English browser recognition / د انګلیسي غږ پېژندنه: '+(browserEnglish?'available / شته':'unavailable / نشته')+
+  'English speech recognition / د انګلیسي غږ پېژندنه: '+(localEnglish?'experimental local model / ازمایښتي ځايي سیستم':browserEnglish?'available / شته':'unavailable / نشته')+
   '. Pashto recording / د پښتو غږ ثبتول: '+(pashtoRecording?'available / شته':'unavailable / نشته')+
   '. Pashto speech / د پښتو غږیزه وینا: experimental local engine / ازمایښتي ځايي سیستم'+
   '. English voice / د انګلیسي غږ: '+(englishVoice?'available / شته':'unavailable / نشته')+'.';
- $('en').disabled=!browserEnglish;
+ $('en').disabled=!(browserEnglish||localEnglish);
  $('ps').disabled=!pashtoRecording;
  // A change in system voices must never interrupt active listening or translation.
  if(requestSeq!==0)return;
