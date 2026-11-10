@@ -36,3 +36,10 @@ test('common expressions can be pictured as a single concept',()=>{
 test('picture count can be capped for long utterances',()=>{
  assert.equal(extractVisualConcepts('I need water and food and a towel and a bottle',known,{max:2}).length,2);
 });
+
+test('cashew stays a recognized concept, not a peanut substitute',()=>{
+ const [item]=extractVisualConcepts('cashews',[]);
+ assert.equal(item.label,'cashew');
+ assert.equal(item.unknown,undefined);
+ assert.notEqual(item.emoji,'🥜');
+});
