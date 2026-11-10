@@ -1,0 +1,44 @@
+name: Capture linked resource homepages
+
+# Only run when the capture instructions are added or updated. Avoid running
+# arbitrary off-site browsing as part of every application commit.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/capture-resource-previews.yml'
+      - 'scripts/capture-resource-previews.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.0-noble
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Capture actual external resource homepages
+        run: node scripts/capture-resource-previews.mjs
+      - name: Generate QR for the published application
+        run: npm run generate:share-qr
+      - name: Commit real website screenshots to this development branch
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/resources/heston-homepage.png assets/resources/parsemus-homepage.png assets/resources/share-app.svg
+          if ! git diff --cached --quiet; then
+            git commit -m 'Add genuine resource homepage screenshots and local share QR'
+            git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          fi

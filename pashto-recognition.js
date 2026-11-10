@@ -37,13 +37,18 @@ function cancelCapture(){
  recording=null;client.cancel();resetButton();
 }
 window.addEventListener('pashto-session-start',cancelCapture);
-window.addEventListener('pagehide',cancelCapture);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelCapture()});
+function cancelSession(){
+ if(capture){
+  window.pashtoApp.begin('ps'); // Invalidate translation already in flight too.
+  status('Cancelled. Tap to speak again. / لغوه شو. د بیا خبرو لپاره تڼۍ کېکاږئ.');
+ }else client.cancel();
+}
+window.addEventListener('pagehide',cancelSession);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelSession()});
 pashtoButton.onclick=async()=>{
  if(capture){
   if(recording?.state==='recording'){recording.stop();return}
-  cancelCapture();
-  status('Cancelled. Tap to speak again. / لغوه شو. د بیا خبرو لپاره تڼۍ کېکاږئ.');
+  cancelSession();
   return;
  }
  const app=window.pashtoApp;

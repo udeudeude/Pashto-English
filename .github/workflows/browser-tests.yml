@@ -35,6 +35,8 @@ jobs:
         run: npm run test:speech-errors
       - name: Test recognition worker recovery
         run: npm run test:recognition
+      - name: Verify website thumbnails and QR code
+        run: npm run test:resources
       - name: Test mobile browsers
         run: npm test
       - name: Upload traces after failure

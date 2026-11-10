@@ -4,15 +4,15 @@ Updated: 2026-11-09
 
 ## Active recognition reliability work — pull request #8
 
-Branch: `fix/pashto-recognition-runtime`; https://github.com/udeudeude/Pashto-English/pull/8 (draft, not deployed).
-Based on main `851203d`; first remote commit `2e4fa3f` corrects memory error classification.
+Branch: `fix/pashto-recognition-runtime`; worker milestone commit `757a199`; https://github.com/udeudeude/Pashto-English/pull/8 (draft, not deployed).
+Concurrent main `bff3905` (homepage resources) has been merged into this branch, preserving both test suites. First remote commit `2e4fa3f` corrects memory error classification.
 
 Implemented next milestone:
 - Run Whisper in a lazy, disposable module worker with one WebAssembly thread. Keep model initialization and inference off the interface thread.
 - Destroy failed/timed-out workers so Retry starts a fresh runtime; reuse healthy workers. Timeout is three minutes, with user cancellation available throughout.
 - Prevent overlapping microphone requests, dispose of permission grants arriving after cancellation, release capture on new conversations/page hiding/errors, and ignore stale callbacks.
 - Limit recording to 20 seconds and reject decoded audio over 21 seconds to bound memory use.
-- Add six worker-client unit tests and five browser regressions (each Chromium/WebKit). Browser tests mock microphone and remote model; they do NOT measure recognition accuracy.
+- Add six worker-client unit tests and six browser regressions (each Chromium/WebKit). Browser tests mock microphone and remote model; they do NOT measure recognition accuracy.
 
 Local checks: syntax, 6 worker-client tests, 4 speech-error tests, 4 transcript tests, 7 visual-language tests pass. Voice waveform generation passes (2.09 seconds, non-silent). Local browser installation failed with an invalid download archive; GitHub browser execution pending on the new commit.
 
@@ -115,3 +115,11 @@ A user iPhone screenshot revealed substantial omissions from the vertical pictur
 6. Replaces large raw Pashto WebAssembly failure messages with concise English/Pashto error messages. **This does not resolve the underlying WebAssembly backend failure.**
 
 **Verification:** GitHub Actions passed **34 mobile Chromium/WebKit browser tests**, all added visual-language and recognition-error unit tests, and Pashto waveform generation on PR #5, head `3ae050062480230382d8286c2867a37f403377bf`. All changes were merged on November 9, 2026 (New York time). GitHub Pages deployment and real iPhone testing should be checked; the bilingual title should occupy exactly two lines and more meaning-bearing words should gain real pictograms when providers return them. The underlying Pashto recognition WebAssembly startup failure remains unresolved; only the error display was improved.
+
+## Latest resources/share addition: pull request #7
+
+Pull request https://github.com/udeudeude/Pashto-English/pull/7 adds a visible bilingual section at the **bottom** of the app (above the existing footer), with actual homepage screenshot previews linking to the University of Chicago's Heston Pashto–English audio dictionary and Parsemus Foundation's free English lessons for Pashto speakers. Underneath, it adds a scannable static SVG QR encoding the **exact** public URL `https://udeudeude.github.io/Pashto-English/`.
+
+The screenshots are built with headless Chromium at 1200x720 and stored in `assets/resources/`; a separately generated, locally hosted SVG QR avoids third-party QR providers. Files were captured by GitHub Actions from the actual sites, with page-text checks. Test coverage includes file integrity, canonical URL generation, both links, screenshot loading, QR loading, bilingual labels and bottom placement. Do not claim deployment until pull request is merged and GitHub Pages completes its workflow.
+
+If a screenshot later becomes stale because the external site's design changes, re-run the capture script on a reviewed development branch and verify the screenshot still depicts the intended live page. Do not create synthetic homepage illustrations.

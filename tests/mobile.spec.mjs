@@ -512,3 +512,70 @@ test('real module worker loads lazily, transcribes and recovers after runtime fa
  });
  expect(result).toEqual({failure:'wasm initialization failed',text:'سلام'});
 });
+
+test('linked homepage previews and app-sharing QR are displayed at the bottom', async ({ page }) => {
+ const resources=page.locator('.resource-section');
+ const cards=resources.locator('a.resource-card');
+ await expect(cards).toHaveCount(2);
+ await expect(resources.locator('h2')).toContainText('د پښتو');
+ await expect(cards.nth(0)).toHaveAttribute('href','https://dsal.uchicago.edu/dictionaries/heston/');
+ await expect(cards.nth(1)).toHaveAttribute('href','https://www.parsemus.org/free-english-lessons-for-pashto-speakers/');
+ for(const card of await cards.all()){
+   await expect(card).toHaveAttribute('target','_blank');
+   await expect(card.locator('img')).toHaveAttribute('alt',/homepage/i);
+   const image=card.locator('img');
+   await image.scrollIntoViewIfNeeded();
+   await expect.poll(()=>image.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+ }
+ const share=page.locator('.share-section');
+ await expect(share.locator('h2')).toContainText('دا اپ شریک کړئ');
+ await expect(share.locator('.share-qr-link')).toHaveAttribute('href','https://udeudeude.github.io/Pashto-English/');
+ await expect(share.locator('img')).toHaveAttribute('src','./assets/resources/share-app.svg');
+ const qr=share.locator('img');
+ await qr.scrollIntoViewIfNeeded();
+ await expect.poll(()=>qr.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
+ const ordered=await page.evaluate(()=>{
+   const nodes=[
+     document.querySelector('#self-test'),
+     document.querySelector('.resource-section'),
+     document.querySelector('.share-section'),
+     document.querySelector('footer')
+   ];
+   return nodes.every((node,i)=>i===nodes.length-1||Boolean(
+     node.compareDocumentPosition(nodes[i+1])&Node.DOCUMENT_POSITION_FOLLOWING
+   ));
+ });
+ expect(ordered).toBe(true);
+});
+
+test('cancelling Pashto while translation is pending prevents late speech and Replay',async({page})=>{
+ await fakePashtoMicrophone(page);
+ await page.evaluate(()=>{
+  window.AudioContext=class{
+   async decodeAudioData(){return {duration:0.5}}
+   async close(){}
+  };
+  window.OfflineAudioContext=class{
+   createBufferSource(){return {connect(){},start(){}}}
+   async startRendering(){return {getChannelData:()=>new Float32Array(8000)}}
+  };
+  window.Worker=class{
+   postMessage({id}){queueMicrotask(()=>this.onmessage({data:{id,type:'result',text:'سلام'}}))}
+   terminate(){}
+  };
+  window.translate=()=>new Promise(resolve=>{window.finishTranslation=resolve});
+  window.spokenAfterCancel=0;
+  window.speak=()=>window.spokenAfterCancel++;
+ });
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.evaluate(()=>window.fakeRecorder.ondataavailable({data:new Blob(['fake audio'])}));
+ await page.locator('#ps').click();
+ await expect(page.locator('#original')).toHaveText('سلام');
+ await expect(page.locator('#ps')).toContainText('Cancel');
+ await page.locator('#ps').click();
+ await page.evaluate(()=>window.finishTranslation('Hello'));
+ await expect(page.locator('#replay')).toBeDisabled();
+ await expect(page.locator('#result')).toContainText('Waiting for speech');
+ expect(await page.evaluate(()=>window.spokenAfterCancel)).toBe(0);
+});
