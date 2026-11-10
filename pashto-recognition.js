@@ -15,6 +15,17 @@ const buttons={
 };
 let capture=null,recording=null;
 const status=s=>window.pashtoStatus?window.pashtoStatus(s):document.getElementById('status').textContent=s;
+function explainInputFailure(error,language){
+ if(language==='ps')return explainPashtoRecognitionFailure(error);
+ const detail=String(error?.message||error||'');
+ if(/permission|denied|notallowederror/i.test(detail))
+  return 'Microphone permission denied. / مایکروفون ته اجازه نه ده ورکړل شوې.';
+ if(/short|no audio|silent|empty|signal/i.test(detail))
+  return 'No usable English speech was recorded. / د کار وړ انګلیسي خبرې ثبت نه شوې.';
+ if(/wasm|webassembly|backend|aborted|memory|timed out/i.test(detail))
+  return 'English speech recognition could not start on this phone. / په دې تلیفون کې د انګلیسي غږ پېژندنه پیل نه شوه.';
+ return 'English speech recognition failed. Please try again. / د انګلیسي غږ پېژندنه ناکامه شوه. بیا هڅه وکړئ.';
+}
 const labels={
  ps:'🎙 پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small>',
  en:'🎙 English<small>Speak English / په انګلیسي خبرې وکړئ</small>'
@@ -71,8 +82,9 @@ window.addEventListener('pashto-session-start',cancelCapture);
 function cancelSession(reason='user'){
  if(!capture){client.cancel();return}
  const lang=capture.lang;
- // A new app session invalidates queued transcripts and translations.
- window.pashtoApp?.begin(lang);
+ // Discard queued transcripts and translations without unlocking audio
+ // playback during Safari background transitions.
+ window.pashtoApp?.cancel();
  status(reason==='background'
   ?'Microphone off. Recording stopped when the app lost focus. / مایکروفون بند دی. د اپ د شالید کېدو له امله ثبت ودرېد.'
   :'Cancelled. Tap to speak again. / لغوه شو. د بیا خبرو لپاره تڼۍ کېکاږئ.');
@@ -94,7 +106,7 @@ function stopRecording(current){
  const recorder=current.recorder;
  if(recorder?.state==='recording'){
   try{recorder.stop()}catch(error){
-   window.pashtoApp?.fail(explainPashtoRecognitionFailure(error),current.session);
+   window.pashtoApp?.fail(explainInputFailure(error,current.lang),current.session);
    cancelCapture();return;
   }
  }
@@ -153,7 +165,7 @@ async function startLocalCapture(lang){
   recorder.onerror=event=>{
    captureError=event.error||Error('Recording failed.');
    if(valid()){
-    app.fail(explainPashtoRecognitionFailure(captureError),session);
+    app.fail(explainInputFailure(captureError,lang),session);
     cancelCapture();
    }
   };
@@ -174,7 +186,7 @@ async function startLocalCapture(lang){
     const transcript=await client.recognize(pcm,progress,lang==='en'?'english':'pashto');
     if(valid())await app.process(transcript,lang,session);
    }catch(error){
-    if(valid())app.fail(explainPashtoRecognitionFailure(error),session);
+    if(valid())app.fail(explainInputFailure(error,lang),session);
    }finally{
     if(capture===current){
      haltTracks(current);
@@ -196,7 +208,7 @@ async function startLocalCapture(lang){
   },20000);
  }catch(error){
   haltTracks(current);
-  if(valid()){app.fail(explainPashtoRecognitionFailure(error),session);cancelCapture()}
+  if(valid()){app.fail(explainInputFailure(error,lang),session);cancelCapture()}
  }
 }
 buttons.ps.onclick=()=>startLocalCapture('ps');
