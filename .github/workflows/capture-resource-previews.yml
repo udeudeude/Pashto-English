@@ -30,13 +30,15 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Capture actual external resource homepages
         run: node scripts/capture-resource-previews.mjs
+      - name: Generate QR for the published application
+        run: npm run generate:share-qr
       - name: Commit real website screenshots to this development branch
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/resources/heston-homepage.png assets/resources/parsemus-homepage.png
+          git add assets/resources/heston-homepage.png assets/resources/parsemus-homepage.png assets/resources/share-app.svg
           if ! git diff --cached --quiet; then
-            git commit -m 'Add real homepage screenshots for Pashto learning resources'
+            git commit -m 'Add genuine resource homepage screenshots and local share QR'
             git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
           fi
