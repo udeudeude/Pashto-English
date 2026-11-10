@@ -196,23 +196,65 @@ async function processTranscript(heard,source,session){
   return false;
  }
 }
+function stopBrowserRecognition(rec){
+ if(!rec)return;
+ if(active===rec)active=null;
+ // Remove callbacks before abort: Safari sometimes delivers a late event.
+ rec.onresult=null;rec.onerror=null;rec.onend=null;
+ try{rec.abort()}catch(error){try{rec.stop()}catch(_){}}
+ $('en').setAttribute('aria-pressed','false');
+}
+function stopMicrophoneWhenHidden(){
+ if(!active)return;
+ // Invalidate late results, so background speech cannot restart playback.
+ ++requestSeq;
+ stopBrowserRecognition(active);
+ setStatus('Microphone stopped because the app is in the background. / د اپ په شالید کې مایکروفون بند شو.');
+}
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden)stopMicrophoneWhenHidden();
+});
+window.addEventListener('pagehide',stopMicrophoneWhenHidden);
 function start(lang){
- if(!Recognition)return;
+ if(!Recognition||document.hidden)return;
+ if(active){
+  ++requestSeq;
+  stopBrowserRecognition(active);
+  setStatus('Microphone stopped. / مایکروفون بند شو.');
+  return;
+ }
  const session=begin(lang);
  const rec=new Recognition();active=rec;
  rec.lang=lang==='ps'?'ps-AF':'en-US';
  rec.interimResults=false;rec.continuous=false;rec.maxAlternatives=1;
+ $('en').setAttribute('aria-pressed','true');
  setStatus(lang==='ps'?'Listening for Pashto…':'Listening for English…');
- rec.onresult=event=>{if(session===requestSeq)processTranscript(event.results?.[0]?.[0]?.transcript,lang,session)};
- rec.onerror=event=>fail('Recognition error: '+event.error+'. Please try again.',session);
- rec.onend=()=>{if(active===rec)active=null};
- try{rec.start()}catch(err){fail('Microphone could not start: '+err.message,session)}
+ rec.onresult=event=>{
+  if(session!==requestSeq||active!==rec)return;
+  const transcript=event.results?.[0]?.[0]?.transcript;
+  stopBrowserRecognition(rec);
+  processTranscript(transcript,lang,session);
+ };
+ rec.onerror=event=>{
+  if(active!==rec)return;
+  stopBrowserRecognition(rec);
+  fail('Recognition error: '+event.error+'. Please try again.',session);
+ };
+ rec.onend=()=>{
+  if(active!==rec)return;
+  active=null;$('en').setAttribute('aria-pressed','false');
+ };
+ try{rec.start()}catch(err){
+  stopBrowserRecognition(rec);
+  fail('Microphone could not start: '+err.message,session);
+ }
 }
 function demo(text,source){
  const session=begin(source);
  return processTranscript(text,source,session);
 }
 window.pashtoApp={begin,process:processTranscript,fail,demo,isCurrent:session=>session===requestSeq};
+$('en').setAttribute('aria-pressed','false');
 $('en').onclick=()=>start('en');
 $('replay').onclick=()=>{
  if(!lastSpeech)return;
