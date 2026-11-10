@@ -28,8 +28,9 @@ test('share QR precedes resources and compatibility, without redundant scan inst
  const html=await readFile('index.html','utf8');
  const share=html.indexOf('<section class="panel share-section"');
  const resources=html.indexOf('<section class="panel resource-section"');
+ const selfTest=html.indexOf('id="self-test"');
  const privacy=html.indexOf('<summary>Compatibility and privacy');
- assert.ok(share>=0&&resources>share&&privacy>resources,'Expected QR, resources, then compatibility and privacy');
+ assert.ok(share>=0&&resources>share&&selfTest>resources&&privacy>selfTest,'Expected QR, resources, self-test, then compatibility and privacy');
  assert.ok(!html.includes('Scan with another phone’s camera'));
  assert.ok(!html.includes('د بل تلیفون په کامره دا کوډ سکن کړئ'));
  assert.ok(html.includes('assets/resources/share-app.svg'));
