@@ -31,6 +31,8 @@ jobs:
         run: npm run test:transcripts
       - name: Test word-to-picture coverage and sentence order
         run: npm run test:visual
+      - name: Validate cultural review register and vocabulary annotations
+        run: node --test tests/cultural-audit.test.mjs tests/cultural-review.test.mjs
       - name: Test readable recognition failure messages
         run: npm run test:speech-errors
       - name: Test recognition worker recovery
