@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "description": "Published aligned Pashto-English examples, unverified for translation correctness. These are provenance fixtures, not gold-standard translations.",
+  "references": [
+    {
+      "id": "PUB-001",
+      "english": "Would you prefer going by bus?",
+      "pashto": "ایا ته به دا خوش کړی چه په بس کی ولاړ سۍ؟",
+      "sourceUrl": "https://www.manythings.org/bilingual/pus/1t.html",
+      "source": "Tatoeba contributor rahimikdr via ManyThings",
+      "license": "Tatoeba CC BY 2.0 FR; verify sentence-specific attribution before redistribution",
+      "confidence": "published-unverified",
+      "notes": "Orthographic and grammatical quality not independently established; do not use as a certified answer."
+    },
+    {
+      "id": "PUB-002",
+      "english": "I am going to school",
+      "pashto": "زه ښوونځي ته ځم",
+      "sourceUrl": "https://huggingface.co/datasets/nassimjp/opus-100-ps-en",
+      "source": "OPUS-100 derivative dataset card example",
+      "license": "Dataset card lists unknown license; citation-only fixture, review before redistribution",
+      "confidence": "published-unverified",
+      "notes": "Example from dataset description, not independent human verification."
+    }
+  ],
+  "evaluationPolicy": "Use these examples for provenance and exact-text fixture checks only. Do not claim semantic translation accuracy from matching a single published pair."
+}
