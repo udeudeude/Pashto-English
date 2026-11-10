@@ -95,3 +95,11 @@ A user iPhone screenshot revealed substantial omissions from the vertical pictur
 6. Replaces large raw Pashto WebAssembly failure messages with concise English/Pashto error messages. **This does not resolve the underlying WebAssembly backend failure.**
 
 **Verification:** GitHub Actions passed **34 mobile Chromium/WebKit browser tests**, all added visual-language and recognition-error unit tests, and Pashto waveform generation on PR #5, head `3ae050062480230382d8286c2867a37f403377bf`. All changes were merged on November 9, 2026 (New York time). GitHub Pages deployment and real iPhone testing should be checked; the bilingual title should occupy exactly two lines and more meaning-bearing words should gain real pictograms when providers return them. The underlying Pashto recognition WebAssembly startup failure remains unresolved; only the error display was improved.
+
+## Latest resources/share addition: pull request #7
+
+Pull request https://github.com/udeudeude/Pashto-English/pull/7 adds a visible bilingual section at the **bottom** of the app (above the existing footer), with actual homepage screenshot previews linking to the University of Chicago's Heston Pashto–English audio dictionary and Parsemus Foundation's free English lessons for Pashto speakers. Underneath, it adds a scannable static SVG QR encoding the **exact** public URL `https://udeudeude.github.io/Pashto-English/`.
+
+The screenshots are built with headless Chromium at 1200x720 and stored in `assets/resources/`; a separately generated, locally hosted SVG QR avoids third-party QR providers. Files were captured by GitHub Actions from the actual sites, with page-text checks. Test coverage includes file integrity, canonical URL generation, both links, screenshot loading, QR loading, bilingual labels and bottom placement. Do not claim deployment until pull request is merged and GitHub Pages completes its workflow.
+
+If a screenshot later becomes stale because the external site's design changes, re-run the capture script on a reviewed development branch and verify the screenshot still depicts the intended live page. Do not create synthetic homepage illustrations.
