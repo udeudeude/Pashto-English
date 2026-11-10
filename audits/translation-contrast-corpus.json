@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "description": "English source-side contrastive translation probes, NOT verified Pashto reference translations.",
+  "method": "Translate each member in both directions where independently sourced references exist; assess meaning preservation manually from published bilingual material or reproducible model comparisons. Do not score model agreement as correctness.",
+  "cases": [
+    {
+      "id": "NEG-01",
+      "category": "negation",
+      "english": [
+        "I need water.",
+        "I do not need water."
+      ],
+      "contrast": "Negation reverses need.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "NEG-02",
+      "category": "negation",
+      "english": [
+        "I can come tomorrow.",
+        "I cannot come tomorrow."
+      ],
+      "contrast": "Ability negation must remain.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "NEG-03",
+      "category": "negation",
+      "english": [
+        "Take this medicine.",
+        "Do not take this medicine."
+      ],
+      "contrast": "Prohibition is high stakes.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "Q-01",
+      "category": "questions",
+      "english": [
+        "You are in pain.",
+        "Are you in pain?"
+      ],
+      "contrast": "Statement and question differ.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "POL-01",
+      "category": "politeness",
+      "english": [
+        "Give me water.",
+        "Could you please give me water?"
+      ],
+      "contrast": "Request register differs.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "KIN-01",
+      "category": "kinship",
+      "english": [
+        "My older brother is here.",
+        "My younger brother is here."
+      ],
+      "contrast": "Age distinction may be lexical.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "KIN-02",
+      "category": "kinship",
+      "english": [
+        "My mother is coming.",
+        "My father is coming."
+      ],
+      "contrast": "Kinship identity must not flip.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "NUM-01",
+      "category": "number",
+      "english": [
+        "I need one tablet.",
+        "I need two tablets."
+      ],
+      "contrast": "Number and dosage are critical.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "TIME-01",
+      "category": "time",
+      "english": [
+        "I came yesterday.",
+        "I will come tomorrow."
+      ],
+      "contrast": "Time and tense differ.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "REF-01",
+      "category": "reference",
+      "english": [
+        "She needs help.",
+        "He needs help."
+      ],
+      "contrast": "Gender distinctions where grammatically relevant.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "SAFE-01",
+      "category": "emergency",
+      "english": [
+        "Call an ambulance.",
+        "Do not call an ambulance."
+      ],
+      "contrast": "High-stakes polarity.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    },
+    {
+      "id": "CLASS-01",
+      "category": "classroom",
+      "english": [
+        "Please repeat that slowly.",
+        "Please stop speaking."
+      ],
+      "contrast": "Instruction meaning differs.",
+      "pashtoGold": null,
+      "validation": "unverified",
+      "requiresReference": true
+    }
+  ]
+}
