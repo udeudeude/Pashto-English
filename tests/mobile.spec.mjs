@@ -713,6 +713,7 @@ test('iPhone English recognition never invokes Web Speech and uses owned local t
   safety:window.pashtoMicrophoneSafety?.state()
  }));
  expect(result.localEnglish).toBe(true);
+ await expect(page.locator('#capabilities')).toContainText('experimental local model');
  await fakePashtoMicrophone(page);
  await page.evaluate(()=>{
   window.SpeechRecognition=class{start(){window.browserEnglishCalled=true}};
