@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "scope": "Afghan Pashto-English communication; hypotheses require validation",
+  "evidenceLevels": [
+    "hypothesis",
+    "documented",
+    "speaker-validated"
+  ],
+  "statusValues": [
+    "needs-review",
+    "under-review",
+    "validated",
+    "remediated"
+  ],
+  "findings": [
+    {
+      "id": "CULT-01",
+      "severity": "high",
+      "area": "gestures",
+      "terms": [
+        "okay"
+      ],
+      "source": "picture-catalog.js",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Thumbs-up and ring-hand gesture meanings vary with context and audience.",
+      "validation": "Unprompted image-only comprehension across age and regional groups."
+    },
+    {
+      "id": "CULT-02",
+      "severity": "high",
+      "area": "polysemy",
+      "terms": [
+        "old",
+        "like",
+        "play",
+        "right"
+      ],
+      "source": "lib/visual-language.mjs",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Single pictogram may encode the wrong sense.",
+      "validation": "Blind sentence-context picture comprehension."
+    },
+    {
+      "id": "CULT-03",
+      "severity": "critical",
+      "area": "health",
+      "terms": [
+        "medicine",
+        "pain",
+        "emergency",
+        "danger"
+      ],
+      "source": "lib/visual-language.mjs",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Unreviewed illustrations can mislead in high-stakes communication.",
+      "validation": "Fluent bilingual scenario review; do not treat images as translations."
+    },
+    {
+      "id": "CULT-04",
+      "severity": "high",
+      "area": "translation",
+      "terms": [
+        "negation",
+        "honorifics",
+        "kinship",
+        "gender"
+      ],
+      "source": "index.html",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Translation may lose contextual meaning.",
+      "validation": "Two-direction dialogue evaluation by independent fluent reviewers."
+    },
+    {
+      "id": "CULT-05",
+      "severity": "high",
+      "area": "speech",
+      "terms": [
+        "pronunciation",
+        "dialect"
+      ],
+      "source": "pashto-voice.js",
+      "evidence": "documented",
+      "status": "needs-review",
+      "risk": "Intelligibility remains unverified by speakers per engineering handoff.",
+      "validation": "Blind audio comprehension and regional pronunciation review."
+    },
+    {
+      "id": "CULT-06",
+      "severity": "high",
+      "area": "accessibility",
+      "terms": [
+        "picture picker",
+        "error recovery"
+      ],
+      "source": "stability.js",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Workflow may depend on literacy.",
+      "validation": "Observe nonreading adults completing tasks without text prompts."
+    },
+    {
+      "id": "CULT-07",
+      "severity": "moderate",
+      "area": "representation",
+      "terms": [
+        "man",
+        "woman",
+        "police",
+        "family"
+      ],
+      "source": "lib/visual-language.mjs",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Pictograms may imply narrow cultural or social assumptions.",
+      "validation": "Comprehension review across different Afghan backgrounds."
+    },
+    {
+      "id": "CULT-08",
+      "severity": "high",
+      "area": "privacy",
+      "terms": [
+        "microphone",
+        "sharing"
+      ],
+      "source": "microphone-safety.js",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Sensitive speech and microphone capture require transparent consent.",
+      "validation": "Physical-device privacy and consent scenario checks."
+    },
+    {
+      "id": "CULT-09",
+      "severity": "moderate",
+      "area": "adult-learning",
+      "terms": [
+        "classroom",
+        "homework",
+        "student"
+      ],
+      "source": "lib/visual-language.mjs",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Child-oriented illustrations may undermine adult communication.",
+      "validation": "Adult learner preference and comprehension testing."
+    },
+    {
+      "id": "CULT-10",
+      "severity": "high",
+      "area": "script",
+      "terms": [
+        "Pashto",
+        "directionality"
+      ],
+      "source": "index.html",
+      "evidence": "hypothesis",
+      "status": "needs-review",
+      "risk": "Script, transcription or direction may be misread.",
+      "validation": "Linguist review of both scripts and actual spoken output."
+    }
+  ]
+}
