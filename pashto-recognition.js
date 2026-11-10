@@ -46,11 +46,9 @@ async function decodeForWhisper(blob){
 }
 function haltTracks(current){
  if(!current?.stream)return;
- safety?.stopStream(current.stream);
- // stopStream from our supervisor is synchronous; this fallback keeps the
- // recorded track safe if that script was unavailable or partially loaded.
- for(const track of current.stream.getTracks?.()||[]){
-  if(track.readyState!=='ended')try{track.stop()}catch(error){}
+ if(safety)safety.stopStream(current.stream);
+ else for(const track of current.stream.getTracks?.()||[]){
+  try{track.stop()}catch(error){}
  }
  current.stream=null;
 }
