@@ -13,8 +13,12 @@ test('actual Whisper runtime loads and executes in the browser worker',async({pa
   const client=createRecognitionClient({timeoutMs:180_000});
   const start=performance.now(),stages=[];
   try{
-   const text=await client.recognize(new Float32Array(16_000),stage=>stages.push({stage,elapsedMs:Math.round(performance.now()-start)}));
-   return {executed:true,elapsedMs:Math.round(performance.now()-start),stages,outputCharacters:text.length,
+   const pashtoText=await client.recognize(new Float32Array(16_000),
+    stage=>stages.push({language:'pashto',stage,elapsedMs:Math.round(performance.now()-start)}));
+   const englishText=await client.recognize(new Float32Array(16_000),
+    stage=>stages.push({language:'english',stage,elapsedMs:Math.round(performance.now()-start)}),'english');
+   return {executed:true,elapsedMs:Math.round(performance.now()-start),stages,
+    pashtoOutputCharacters:pashtoText.length,englishOutputCharacters:englishText.length,
     interpretation:'Engine execution on synthetic silence only. No speech accuracy evidence.'};
   }catch(error){
    return {executed:false,elapsedMs:Math.round(performance.now()-start),stages,error:error.message};
@@ -23,5 +27,5 @@ test('actual Whisper runtime loads and executes in the browser worker',async({pa
  await testInfo.attach('recognition-runtime-report',{body:JSON.stringify(report,null,2),contentType:'application/json'});
  console.log(JSON.stringify({browser:testInfo.project.name,...report}));
  expect(report.executed,report.error).toBe(true);
- expect(report.stages.map(item=>item.stage)).toContain('recognizing');
+ expect(report.stages.filter(item=>item.stage==='recognizing').map(item=>item.language)).toEqual(['pashto','english']);
 });

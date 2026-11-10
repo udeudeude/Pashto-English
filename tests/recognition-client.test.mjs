@@ -52,3 +52,16 @@ test('worker startup and message errors reject and permit retry',async()=>{
  const bad=createRecognitionClient({createWorker(){throw Error('Worker unsupported')}});
  await assert.rejects(bad.recognize(new Float32Array(1)),/Worker unsupported/);
 });
+
+test('English input chooses English in the same local worker as Pashto',async()=>{
+ const {client,workers}=setup();
+ const result=client.recognize(new Float32Array(1600),()=>{},'english');
+ assert.equal(workers[0].sent.language,'english');
+ workers[0].reply({type:'result',text:'Hello'});
+ assert.equal(await result,'Hello');
+ const pashto=client.recognize(new Float32Array(1600));
+ assert.equal(workers[0].sent.language,'pashto');
+ workers[0].reply({type:'result',text:'سلام'});
+ assert.equal(await pashto,'سلام');
+ client.cancel();
+});
