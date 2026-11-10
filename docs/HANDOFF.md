@@ -2,26 +2,28 @@
 
 Updated: 2026-11-09
 
-## Active recognition reliability work — pull request #8
+## Recognition reliability milestone — pull request #8
 
-Branch: `fix/pashto-recognition-runtime`; worker milestone commit `757a199`; https://github.com/udeudeude/Pashto-English/pull/8 (draft, not deployed).
-Concurrent main `bff3905` (homepage resources) has been merged into this branch, preserving both test suites. First remote commit `2e4fa3f` corrects memory error classification.
+Branch: `fix/pashto-recognition-runtime`. Pull request: https://github.com/udeudeude/Pashto-English/pull/8 . **Ready for review; not merged or deployed by this session.** Tested implementation: `e8d53587412cd14832d2310937207274f0c86107`. The final documentation commit follows that code commit. Concurrent main `bff3905` (PR #7 resources) is incorporated, preserving both developers' work.
 
-Implemented next milestone:
-- Run Whisper in a lazy, disposable module worker with one WebAssembly thread. Keep model initialization and inference off the interface thread.
-- Destroy failed/timed-out workers so Retry starts a fresh runtime; reuse healthy workers. Timeout is three minutes, with user cancellation available throughout.
-- Prevent overlapping microphone requests, dispose of permission grants arriving after cancellation, release capture on new conversations/page hiding/errors, and ignore stale callbacks.
-- Reject digital silence and corrupt decoder output before inference; this does not reject all noise or hallucinations.
-- Limit recording to 20 seconds and reject decoded audio over 21 seconds to bound memory use.
-- Add six worker-client unit tests and six browser regressions (each Chromium/WebKit). Browser tests mock microphone and remote model; they do NOT measure recognition accuracy.
+Implemented:
+- Lazy, restartable Whisper module worker; single-thread WebAssembly; three-minute timeout and cancellation. Failed initialization no longer poisons every subsequent retry. Successful workers are reused, and page hiding releases them.
+- Microphone permission-race protection, disposal of late permission grants, cleanup on errors/new conversations/page hiding, stale-result suppression, and cancellation of pending translation playback.
+- Twenty-second recording limit; reject excessive, too-short, corrupt and digitally silent audio before inference. This is not voice activity detection or a general hallucination detector.
+- Actionable memory and timeout errors; bilingual recording/cancel controls.
+- Separate real-model browser smoke workflow plus worker/audio unit and microphone lifecycle browser regressions.
 
-Local checks: syntax, 9 audio/worker-client tests, 4 speech-error tests, 4 transcript tests, 7 visual-language tests pass. Voice waveform generation passes (2.09 seconds, non-silent). Local browser installation failed with an invalid download archive; system Chromium also cannot launch because the workspace denies its socket operation. GitHub interface browser execution is still pending. Initial WebKit microphone regressions timed out clicking the disabled button: the test fixture installed a fake MediaRecorder after the startup capability check and failed to refresh it. The fixture now refreshes capabilities and asserts the control is enabled. Linux WebKit recorder mocking is not proof of physical Safari recording support. The actual-model smoke workflow passed both Chromium and WebKit at `c5a5fa7` (run 42753363847). See `docs/RECOGNITION_RUNTIME.md` for timings, model sizes and the observed silence hallucination. Digital-silence and corrupt-audio rejection are now implemented with three additional unit tests.
+**Verified:** [run 42754246043](https://github.com/udeudeude/Pashto-English/actions/runs/42754246043) passed syntax checks, all **26 unit tests**, **56 mobile-sized Chromium/WebKit browser tests**, and non-silent Pashto waveform generation. Two network-model tests are intentionally skipped in the ordinary suite and run separately. [Run 42754246190](https://github.com/udeudeude/Pashto-English/actions/runs/42754246190) passed **both real Whisper model execution tests** at the same code commit. `docs/RECOGNITION_RUNTIME.md` records earlier measured startup/execution times, weight sizes, source evidence and reproducible commands.
 
-Investigation evidence: Transformers.js 3.8.1 `src/backends/onnx.js` retains `wasmInitPromise` even when initialization rejects, and chains inference promises. Merely resetting our pipeline promise cannot clear these failures. Source: https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/src/backends/onnx.js . Runtime configuration reference: https://huggingface.co/docs/transformers.js/v3.8.1/custom_usage . Worker restart fixes retry isolation; it does not establish the cause of the originally reported phone startup failure or prove model compatibility on that phone.
+Failed experiments and limits:
+- Local browser download returned an invalid archive; installed Chromium could not launch because this workspace denies its socket operation. Browser verification therefore used GitHub's prebuilt browser container.
+- Initial mocked-microphone tests timed out in Linux WebKit because it lacks a native recorder and the fixture did not refresh the capability check after installing its fake. Fixed and verified. Those tests do not prove physical Safari microphone recording works.
+- Actual Whisper generated seven characters from synthetic silence in each browser. The new digital-silence guard blocks this input at the application boundary; noise and real speech can still yield incorrect transcriptions.
+- Real-model tests establish download/inference execution on GitHub runners only. Afghan Pashto accuracy, physical phone memory/latency, eSpeak intelligibility and translation correctness remain unverified. The original phone startup failure's exact cause has not been reproduced.
 
-Next: inspect PR #8 browser checks and fix any failures, then run an actual model load/transcription on a physical phone and record its download/memory/latency. Benchmark licensed Afghan speech using the existing evaluation guide. No recognition accuracy, physical-device compatibility, or fluent-speaker intelligibility result is claimed.
+**Precise next step:** review/merge PR #8 after checking for concurrent changes and current checks, then test microphone capture, cancellation and actual Whisper transcription on physical iPhone Safari and Android Chrome. Acquire licensed transcribed Afghan speech under `PASHTO_RECOGNITION_EVALUATION.md`, record human-reference error rates and phone download/memory/latency. Consider voice activity detection to reject noise without discarding quiet speech.
 
-Publishing: direct git push has no credentials here; connected GitHub Git-data tools publish atomic trees/commits with an expected-head check. No force pushes. All useful source changes are in the PR; generated test audio is reproducible and contains only the existing public test phrase.
+Recovery: all useful source, tests and findings are pushed. No unfinished source or private recordings exist only in the workspace. Local dependency downloads, scratch browser configuration and the generated public test-phrase waveform are reproducible. Direct git push had no credentials; connected GitHub Git-data tools published atomic commits with expected-head checks. No force pushes. Important checkpoints: `2e4fa3f` (memory errors), `757a199` (worker/lifecycle), `e365fb5` (concurrent merge), `c5a5fa7` (real model tests), `1821ff1` (silence guard/evidence), `e8d5358` (WebKit fixture correction).
 
 ## Picture usability follow-up: pull request #6 (merged)
 
@@ -45,8 +47,8 @@ Implementation:
 - Production repository: https://github.com/udeudeude/Pashto-English
 - Published site: https://udeudeude.github.io/Pashto-English/
 - Production branch: `main`
-- **Last completed development branch:** `fix/shared-translation-and-self-test` (merged into `main`)
-- **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/3
+- **Last merged development branch:** `feature/homepage-resource-cards` (merged into `main`)
+- **Most recent merged pull request:** https://github.com/udeudeude/Pashto-English/pull/7
 - **Latest merged image fix:** https://github.com/udeudeude/Pashto-English/pull/4, branch `fix/real-picture-alternatives` (merged into `main`).
 - **Latest merged usability fix:** https://github.com/udeudeude/Pashto-English/pull/6, branch `fix/scroll-undo-compact-picture-controls`, merged into `main` at `90dbb61491b46e9379478f9c434ea9c83b217b1d`.
 
