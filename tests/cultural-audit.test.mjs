@@ -11,7 +11,7 @@ test('cultural findings have unique identifiers and explicit uncertainty', () =>
   const ids = audit.findings.map(item => item.id);
   assert.equal(new Set(ids).size, ids.length);
   for (const item of audit.findings) {
-    assert.match(item.id, /^CULT-\\d{2}$/);
+    assert.match(item.id, /^CULT-\d{2}$/);
     assert.ok(severities.has(item.severity));
     assert.ok(audit.evidenceLevels.includes(item.evidence));
     assert.ok(audit.statusValues.includes(item.status));
