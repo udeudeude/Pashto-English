@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "check": "node --check picture-catalog.js && node --check stability.js && node --check visual-vocabulary.js && node --check pashto-recognition.js && node --check pashto-voice.js && node --check tests/mobile.spec.mjs && node --check tests/pashto-voice.mjs && node --check lib/pashto-metrics.mjs && node --check scripts/score-transcripts.mjs && node --check lib/visual-language.mjs && node --check tests/visual-language.test.mjs && node --check lib/speech-errors.mjs && node --check tests/speech-errors.test.mjs && node --check scripts/generate-share-qr.mjs && node --check scripts/capture-resource-previews.mjs",
+    "check": "node --check picture-catalog.js && node --check stability.js && node --check visual-vocabulary.js && node --check pashto-recognition.js && node --check pashto-voice.js && node --check tests/mobile.spec.mjs && node --check tests/pashto-voice.mjs && node --check lib/pashto-metrics.mjs && node --check scripts/score-transcripts.mjs && node --check lib/visual-language.mjs && node --check tests/visual-language.test.mjs && node --check lib/speech-errors.mjs && node --check tests/speech-errors.test.mjs && node --check scripts/generate-share-qr.mjs && node --check scripts/capture-resource-previews.mjs && node --check tests/share-resources.test.mjs",
     "test:voice": "node tests/pashto-voice.mjs",
     "test:transcripts": "node --test tests/score-transcripts.test.mjs",
     "test:visual": "node --test tests/visual-language.test.mjs",
     "test:speech-errors": "node --test tests/speech-errors.test.mjs",
-    "generate:share-qr": "node scripts/generate-share-qr.mjs"
+    "generate:share-qr": "node scripts/generate-share-qr.mjs",
+    "test:resources": "node --test tests/share-resources.test.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
