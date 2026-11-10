@@ -5,6 +5,7 @@ on:
     paths:
       - 'tests/recognition-benchmark.spec.mjs'
       - 'tests/fixtures/evaluation-worker.js'
+      - 'scripts/prepare-recognition-evaluation.py'
       - '.github/workflows/recognition-benchmark.yml'
 jobs:
   compare:
@@ -18,6 +19,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - name: Fetch original public evaluation clips into temporary storage
+        run: python3 scripts/prepare-recognition-evaluation.py
       - name: Evaluate real public speech without retaining recordings
         run: npx playwright test tests/recognition-benchmark.spec.mjs --project=android-chromium --workers=1 --retries=0 --trace=off
         env:

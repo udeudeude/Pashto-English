@@ -6,6 +6,13 @@
 (() => {
   'use strict';
   const PACKAGE = new URL('./vendor/pashto-voice/',document.baseURI).href.replace(/\/$/,'');
+  const dialectSelect=document.getElementById('pashto-dialect');
+  const dialects=new Set(['ps','ps-x-northwest','ps-x-southeast','ps-x-yusufzai']);
+  const selectedVoice=()=>dialects.has(dialectSelect?.value)?dialectSelect.value:'ps';
+  try{
+    const saved=localStorage.getItem('pashto-pronunciation');
+    if(dialectSelect&&dialects.has(saved))dialectSelect.value=saved;
+  }catch{} // Playback must also work when browser storage is unavailable.
   let enginePromise=null;
   let audioContext=null;
   let playing=null;
@@ -60,7 +67,8 @@
     if(!audioContext)throw Error('This browser cannot play generated sound.');
     // Produces signed, 16-bit, 22,050 Hz mono samples.
     // Change synthesis rate, not playback rate: preserve voice pitch.
-    const generated=espeak.synthesize(text,{rate:slow?130:175});
+    const voice=selectedVoice(),rate=slow?130:175;
+    const generated=espeak.synthesize(text,{voice,rate});
     if(!generated.samples?.length || !Number.isFinite(generated.sampleRate))
       throw Error('The Pashto voice returned no playable audio.');
     const samples=generated.samples;
@@ -84,7 +92,7 @@
     source.onended=()=>{if(playing===source)playing=null};
     source.start();
     notify('Playing Pashto translation. Speech is experimental.','د پښتو ژباړې غږ غږول کېږي. دا ازمایښتي دی.');
-    return {duration:buffer.duration,sampleRate:generated.sampleRate};
+    return {duration:buffer.duration,sampleRate:generated.sampleRate,voice,rate};
   }
   async function tryVoice(text,options){
     unlock();
@@ -100,5 +108,10 @@
     unlock();
     tryVoice('سلام، تاسو څنګه یاست؟').catch(()=>{});
   });
-  window.pashtoVoice={unlock,stop,speak:tryVoice};
+  if(dialectSelect)dialectSelect.addEventListener('change',()=>{
+    stop();
+    try{localStorage.setItem('pashto-pronunciation',selectedVoice())}catch{}
+    tryVoice('سلام، تاسو څنګه یاست؟').catch(()=>{});
+  });
+  window.pashtoVoice={unlock,stop,speak:tryVoice,selectedVoice};
 })();
