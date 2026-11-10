@@ -648,7 +648,8 @@ test('ARASAAC failure is communicated, rather than silently presenting Iconify a
  await expect(page.locator('.picture-source-label')).toContainText('ARASAAC unavailable');
 });
 
-test('English recognition stops on background and discards a late transcript',async({page})=>{
+test('English recognition stops on background and discards a late transcript',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iOS uses explicit local audio recording, not Safari Web Speech');
  await page.addInitScript(()=>{
    window.SpeechRecognition=window.webkitSpeechRecognition=class {
      constructor(){window.fakeEnglishRecognition=this}
@@ -671,7 +672,8 @@ test('English recognition stops on background and discards a late transcript',as
  await expect(page.locator('#replay')).toBeDisabled();
 });
 
-test('English microphone stops on second tap and immediately after a final recognition result',async({page})=>{
+test('English microphone stops on second tap and immediately after a final recognition result',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iOS uses explicit local audio recording, not Safari Web Speech');
  await page.addInitScript(()=>{
    window.SpeechRecognition=window.webkitSpeechRecognition=class{
      constructor(){window.recordingSessions=(window.recordingSessions||[]);window.recordingSessions.push(this)}
@@ -695,4 +697,129 @@ test('English microphone stops on second tap and immediately after a final recog
  expect(await page.evaluate(()=>window.recordingSessions[1].aborted)).toBe(true);
  await expect(page.locator('#original')).toHaveText('book');
  await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
+});
+
+
+test('iPhone English recognition never invokes Web Speech and uses owned local tracks',async({page},testInfo)=>{
+ test.skip(testInfo.project.name!=='ios-webkit','iPhone-specific input route');
+ const result=await page.evaluate(()=>({
+  localEnglish:window.pashtoSpeechInput?.localEnglish,
+  safety:window.pashtoMicrophoneSafety?.state()
+ }));
+ expect(result.localEnglish).toBe(true);
+ await fakePashtoMicrophone(page);
+ await page.evaluate(()=>{
+  window.SpeechRecognition=class{start(){window.browserEnglishCalled=true}};
+  window.webkitSpeechRecognition=window.SpeechRecognition;
+ });
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toContainText('Stop');
+ expect(await page.evaluate(()=>window.captureStats.requests)).toBe(1);
+ expect(await page.evaluate(()=>window.browserEnglishCalled)).toBeUndefined();
+ const during=await page.evaluate(()=>window.pashtoMicrophoneSafety.state());
+ expect(during.streams).toBe(1);
+ await page.locator('#en').click();
+ await expect.poll(()=>page.evaluate(()=>window.captureStats.stops)).toBe(1);
+ await expect(page.locator('#en')).toContainText('Speak English');
+ expect(await page.evaluate(()=>window.pashtoMicrophoneSafety.state().streams)).toBe(0);
+});
+
+test('iPhone English recording transcribes in English then translates after microphone release',async({page},testInfo)=>{
+ test.skip(testInfo.project.name!=='ios-webkit','iPhone-specific local English speech');
+ await fakePashtoMicrophone(page);
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({
+  status:200,contentType:'application/json',
+  body:'{"responseStatus":200,"responseData":{"translatedText":"سلام"}}'
+ }));
+ await page.evaluate(()=>{
+  window.AudioContext=class{
+   async decodeAudioData(){return {duration:.5}}
+   async close(){}
+  };
+  window.OfflineAudioContext=class{
+   createBufferSource(){return {connect(){},start(){}}}
+   async startRendering(){return {getChannelData:()=>new Float32Array(8000).fill(.01)}}
+  };
+  window.Worker=class{
+   postMessage({id,language}){
+    window.capturedWorkerLanguage=language;
+    queueMicrotask(()=>this.onmessage({data:{id,type:'result',text:'Hello'}}))
+   }
+   terminate(){}
+  };
+  window.pashtoVoice.speak=async()=>{};
+ });
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toContainText('Stop');
+ await page.evaluate(()=>window.fakeRecorder.ondataavailable({data:new Blob(['simulated speech'])}));
+ await page.locator('#en').click();
+ expect(await page.evaluate(()=>window.captureStats.stops)).toBe(1);
+ await expect(page.locator('#original')).toHaveText('Hello');
+ await expect(page.locator('#result')).toHaveText('سلام');
+ expect(await page.evaluate(()=>window.capturedWorkerLanguage)).toBe('english');
+ await expect(page.locator('#en')).toContainText('Speak English');
+ expect(await page.evaluate(()=>window.pashtoMicrophoneSafety.state().streams)).toBe(0);
+});
+
+test('active Pashto microphone tracks are stopped synchronously on background and blur',async({page})=>{
+ await fakePashtoMicrophone(page);
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+ expect(await page.evaluate(()=>window.captureStats.stops)).toBe(1);
+ await expect(page.locator('#ps')).toContainText('Speak Pashto');
+ expect(await page.evaluate(()=>window.pashtoMicrophoneSafety.state().streams)).toBe(0);
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.evaluate(()=>{
+  Object.defineProperty(document,'hidden',{configurable:true,value:true});
+  document.dispatchEvent(new Event('visibilitychange'));
+ });
+ expect(await page.evaluate(()=>window.captureStats.stops)).toBe(2);
+ await expect(page.locator('#ps')).toContainText('Speak Pashto');
+ expect(await page.evaluate(()=>window.pashtoMicrophoneSafety.state().streams)).toBe(0);
+});
+
+test('late microphone permission grant after background is stopped without recording',async({page})=>{
+ await fakePashtoMicrophone(page,{pending:true});
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Cancel');
+ await page.evaluate(()=>{
+  Object.defineProperty(document,'hidden',{configurable:true,value:true});
+  document.dispatchEvent(new Event('visibilitychange'));
+  window.grantMicrophone();
+ });
+ await expect.poll(()=>page.evaluate(()=>window.captureStats.stops)).toBe(1);
+ expect(await page.evaluate(()=>window.captureStats.recorders)).toBe(0);
+ expect(await page.evaluate(()=>window.pashtoMicrophoneSafety.state().streams)).toBe(0);
+});
+
+test('native recognition has a hard timeout when no events ever fire',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iPhone never uses Web Speech');
+ await page.addInitScript(()=>{
+  window.SpeechRecognition=window.webkitSpeechRecognition=class{
+   constructor(){window.stuckBrowserRecognition=this}
+   start(){}
+   abort(){this.aborted=true}
+   stop(){this.stopped=true}
+  };
+ });
+ await page.reload();
+ await page.evaluate(()=>{
+  const original=window.setTimeout;
+  window.setTimeout=(callback,delay,...rest)=>{
+   if(delay===12000){window.fireSpeechPrivacyDeadline=callback;return 0}
+   return original(callback,delay,...rest);
+  };
+ });
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toContainText('Stop');
+ await page.evaluate(()=>window.fireSpeechPrivacyDeadline());
+ await expect(page.locator('#en')).toContainText('Speak English');
+ expect(await page.evaluate(()=>({
+  aborted:window.stuckBrowserRecognition.aborted,
+  stopped:window.stuckBrowserRecognition.stopped,
+  registered:window.pashtoMicrophoneSafety.state().recognizers
+ }))).toEqual({aborted:true,stopped:true,registered:0});
+ await expect(page.locator('#status')).toContainText('timed out');
 });
