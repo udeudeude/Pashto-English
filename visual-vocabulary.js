@@ -15,7 +15,7 @@ const words = [
  ['bike','🚲','bicycle','bike bikes bicycle bicycles'],['phone','📱','smartphone-device','phone phones telephone telephones'],
  ['book','📖','book','book books'],['pen','🖊️','edit-pencil','pen pens pencil pencils'],
  ['paper','📄','page','paper papers'],['key','🔑','key','key keys'],['door','🚪','door','door doors'],
- ['chair','🪑','chair','chair chairs'],['bed','🛏️','bed','bed beds'],['table','🪑','table','table tables'],
+ ['chair','🪑','chair','chair chairs'],['bed','🛏️','bed','bed beds'],['table','❔','table','table tables'],
  ['clock','🕒','clock','clock clocks time'],['money','💵','coins','money cash dollar dollars'],
  ['water','💧','droplet','water'],['food','🍽️','cutlery','food meal meals'],
  ['bread','🍞','bread-slice','bread'],['rice','🍚','bowl','rice'],['milk','🥛','glass','milk'],
