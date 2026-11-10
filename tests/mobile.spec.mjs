@@ -829,3 +829,31 @@ test('native recognition has a hard timeout when no events ever fire',async({pag
  }))).toEqual({aborted:true,stopped:true,registered:0});
  await expect(page.locator('#status')).toContainText('timed out');
 });
+
+test('iPhone English audio tracks are stopped on pagehide without another user tap',async({page},testInfo)=>{
+ test.skip(testInfo.project.name!=='ios-webkit','iPhone privacy pathway');
+ await fakePashtoMicrophone(page);
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toContainText('Stop');
+ await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));
+ expect(await page.evaluate(()=>window.captureStats.stops)).toBe(1);
+ await expect(page.locator('#en')).toContainText('Speak English');
+ expect(await page.evaluate(()=>window.pashtoMicrophoneSafety.state().streams)).toBe(0);
+ await expect(page.locator('#replay')).toBeDisabled();
+});
+
+test('background cancellation does not unlock or resume speech playback',async({page})=>{
+ await fakePashtoMicrophone(page);
+ await page.evaluate(()=>{
+   window.unlockCount=0;
+   window.pashtoVoice.unlock=()=>window.unlockCount++;
+ });
+ await page.locator('#ps').click();
+ await expect(page.locator('#ps')).toContainText('Stop');
+ await page.evaluate(()=>{
+  window.unlockCount=0;
+  window.dispatchEvent(new Event('blur'));
+ });
+ expect(await page.evaluate(()=>window.unlockCount)).toBe(0);
+ expect(await page.evaluate(()=>window.captureStats.stops)).toBe(1);
+});
