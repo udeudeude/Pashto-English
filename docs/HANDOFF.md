@@ -1,10 +1,14 @@
 # Pashto-English: current engineering handoff
 
-Updated: 2026-11-09
+Updated: 2026-11-10
+
+## Active speech-quality work
+
+Branch `feature/pashto-speech-quality`, based on main `6027579` (PR #8 merged after all checks passed). First milestone adds normal/slower replay in both directions; Pashto uses synthesis rate 130 versus 175 while retaining the same sample rate/pitch. Unit waveform checks pass and a browser regression covers replay and stale state. Researching dedicated Pashto recognition and neural voices next. This new branch is not yet deployed.
 
 ## Recognition reliability milestone — pull request #8
 
-Branch: `fix/pashto-recognition-runtime`. Pull request: https://github.com/udeudeude/Pashto-English/pull/8 . **Ready for review; not merged or deployed by this session.** Tested implementation: `e8d53587412cd14832d2310937207274f0c86107`. The final documentation commit follows that code commit. Concurrent main `bff3905` (PR #7 resources) is incorporated, preserving both developers' work.
+Branch: `fix/pashto-recognition-runtime`. Pull request: https://github.com/udeudeude/Pashto-English/pull/8 . **Merged into main at `6027579` on November 10 after all checks passed.** Tested implementation: `e8d53587412cd14832d2310937207274f0c86107`. The final documentation commit follows that code commit. Concurrent main `bff3905` (PR #7 resources) is incorporated, preserving both developers' work.
 
 Implemented:
 - Lazy, restartable Whisper module worker; single-thread WebAssembly; three-minute timeout and cancellation. Failed initialization no longer poisons every subsequent retry. Successful workers are reused, and page hiding releases them.

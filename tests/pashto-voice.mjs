@@ -29,3 +29,11 @@ console.log(JSON.stringify({
   wavBytes:wav.byteLength,
   text:phrase
 },null,2));
+
+const slower=espeak.synthesize(phrase,{rate:130});
+assert.ok(slower.samples.length>samples.length*1.2,'Slower synthesis must lengthen speech without changing sample rate');
+assert.equal(slower.sampleRate,sampleRate);
+const normalAgain=espeak.synthesize(phrase,{rate:175});
+assert.equal(espeak.getParameter('rate'),175,'Temporary rate override must restore normal speed');
+assert.ok(Math.abs(normalAgain.samples.length-samples.length)<sampleRate*0.02,'Normal duration must be restored (allow synthesis jitter)');
+console.log(JSON.stringify({slowDurationSeconds:slower.samples.length/slower.sampleRate,normalDurationSeconds:samples.length/sampleRate}));

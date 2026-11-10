@@ -51,7 +51,7 @@
       playing=null;
     }
   }
-  async function speakPashto(text){
+  async function speakPashto(text,{slow=false}={}){
     const version=++playVersion;
     if(!text || !/[\u0600-\u06ff]/u.test(text))throw Error('The text does not contain Pashto script.');
     const espeak=await loadEngine();
@@ -59,7 +59,8 @@
     unlock();
     if(!audioContext)throw Error('This browser cannot play generated sound.');
     // Produces signed, 16-bit, 22,050 Hz mono samples.
-    const generated=espeak.synthesize(text);
+    // Change synthesis rate, not playback rate: preserve voice pitch.
+    const generated=espeak.synthesize(text,{rate:slow?130:175});
     if(!generated.samples?.length || !Number.isFinite(generated.sampleRate))
       throw Error('The Pashto voice returned no playable audio.');
     const samples=generated.samples;
@@ -85,9 +86,9 @@
     notify('Playing Pashto translation. Speech is experimental.','د پښتو ژباړې غږ غږول کېږي. دا ازمایښتي دی.');
     return {duration:buffer.duration,sampleRate:generated.sampleRate};
   }
-  async function tryVoice(text){
+  async function tryVoice(text,options){
     unlock();
-    try{return await speakPashto(text)}
+    try{return await speakPashto(text,options)}
     catch(error){
       notify('Pashto voice unavailable: '+error.message,'د پښتو غږ کار نه کوي. مهرباني وکړئ بیا هڅه وکړئ.');
       throw error;

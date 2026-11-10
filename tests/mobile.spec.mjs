@@ -588,3 +588,19 @@ test('cancelling Pashto while translation is pending prevents late speech and Re
  await expect(page.locator('#result')).toContainText('Waiting for speech');
  expect(await page.evaluate(()=>window.spokenAfterCancel)).toBe(0);
 });
+
+
+test('slower replay preserves the current translation and cannot replay after a new conversation',async({page})=>{
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({responseStatus:200,responseData:{translatedText:'سلام'}})}));
+ await page.evaluate(()=>{
+  window.playbackCalls=[];
+  window.pashtoVoice.speak=async(text,options)=>{window.playbackCalls.push({text,slow:options?.slow===true})};
+ });
+ await page.locator('#demo-hello').click();
+ await expect(page.locator('#replay-slow')).toBeEnabled();
+ await page.locator('#replay-slow').click();
+ await page.locator('#replay').click();
+ expect(await page.evaluate(()=>window.playbackCalls)).toEqual([{text:'سلام',slow:false},{text:'سلام',slow:true},{text:'سلام',slow:false}]);
+ await page.evaluate(()=>window.pashtoApp.begin('ps'));
+ await expect(page.locator('#replay-slow')).toBeDisabled();
+});
