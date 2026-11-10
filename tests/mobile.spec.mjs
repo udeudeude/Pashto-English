@@ -445,7 +445,10 @@ async function fakePashtoMicrophone(page,{pending=false}={}){
    start(){this.state='recording'}
    stop(){this.state='inactive';queueMicrotask(()=>this.onstop?.())}
   };
+  // Linux WebKit may lack native MediaRecorder. Recheck after installing the fake.
+  window.capabilityReport();
  },{pending});
+ await expect(page.locator('#ps')).toBeEnabled();
 }
 test('Pashto permission can be cancelled without opening a second microphone',async({page})=>{
  await fakePashtoMicrophone(page,{pending:true});
