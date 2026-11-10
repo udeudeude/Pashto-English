@@ -604,7 +604,7 @@ test('cancelling Pashto while translation is pending prevents late speech and Re
 
 test('all image sources are searched; ARASAAC and Iconify options coexist',async({page})=>{
  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>';
- const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==','base64');
+
  await page.route(/https:\/\/api\.arasaac\.org\/v1\/pictograms\/en\/search\//,route=>{
    const term=decodeURIComponent(route.request().url().split('/').pop());
    return route.fulfill({status:200,contentType:'application/json',
@@ -612,7 +612,7 @@ test('all image sources are searched; ARASAAC and Iconify options coexist',async
      body:JSON.stringify([{_id:152,keywords:[{keyword:term,type:2}]}])});
  });
  await page.route(/https:\/\/static\.arasaac\.org\/pictograms\//,route=>
-   route.fulfill({status:200,contentType:'image/png',body:png}));
+   route.fulfill({status:200,contentType:'image/png',path:'assets/resources/heston-homepage.png'}));
  await page.route(/https:\/\/api\.iconify\.design\/search\?/,route=>
    route.fulfill({status:200,contentType:'application/json',body:'{"icons":["mdi:box"]}'}));
  await page.route(/https:\/\/api\.iconify\.design\/.+\.svg/,route=>
