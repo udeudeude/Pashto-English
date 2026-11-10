@@ -548,7 +548,7 @@ test('real module worker loads lazily, transcribes and recovers after runtime fa
  expect(result).toEqual({failure:'wasm initialization failed',text:'سلام'});
 });
 
-test('linked homepage previews and app-sharing QR are displayed at the bottom', async ({ page }) => {
+test('share QR, resource previews, self-test and footer appear in requested order', async ({ page }) => {
  const resources=page.locator('.resource-section');
  const cards=resources.locator('a.resource-card');
  await expect(cards).toHaveCount(2);
@@ -571,9 +571,10 @@ test('linked homepage previews and app-sharing QR are displayed at the bottom', 
  await expect.poll(()=>qr.evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
  const ordered=await page.evaluate(()=>{
    const nodes=[
-     document.querySelector('#self-test'),
-     document.querySelector('.resource-section'),
      document.querySelector('.share-section'),
+     document.querySelector('.resource-section'),
+     document.querySelector('#self-test'),
+     document.querySelector('details.panel:not(#self-test) > summary')?.closest('details'),
      document.querySelector('footer')
    ];
    return nodes.every((node,i)=>i===nodes.length-1||Boolean(
