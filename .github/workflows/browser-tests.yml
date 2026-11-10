@@ -33,6 +33,8 @@ jobs:
         run: npm run test:visual
       - name: Validate cultural review register and vocabulary annotations
         run: node --test tests/cultural-audit.test.mjs tests/cultural-review.test.mjs
+      - name: Validate translation contrast corpus
+        run: node --test tests/translation-audit.test.mjs
       - name: Test readable recognition failure messages
         run: npm run test:speech-errors
       - name: Test recognition worker recovery
