@@ -142,3 +142,53 @@
   position:absolute;
   inset:-7px;
 }
+
+
+/* Caption row: small rejection and alternatives buttons sit next to the word,
+   never cover the pictogram or require a second row. */
+#picture-column .picture-card .picture-caption{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:3px;
+ width:100%;
+ min-height:26px;
+ padding:0 1px;
+}
+#picture-column .picture-card .picture-caption .word{
+ display:block;
+ flex:1 1 auto;
+ min-width:0;
+ text-align:left;
+ font-size:.78rem;
+ line-height:1.15;
+ overflow-wrap:anywhere;
+ padding-left:2px;
+}
+#picture-column .picture-card .picture-actions{
+ position:static;
+ display:flex;
+ flex:0 0 auto;
+ align-items:center;
+ gap:2px;
+ top:auto;left:auto;right:auto;
+ width:auto;
+ padding:0;
+ margin:0;
+ pointer-events:auto;
+}
+#picture-column .picture-card .picture-actions button{
+ width:24px;height:24px;
+ min-width:24px;min-height:24px;
+ border-radius:6px;
+ font-size:.9rem;
+ border:1px solid #bdcbd8;
+ padding:0;
+}
+#picture-column .picture-card .picture-actions button::before{
+ inset:-5px;
+}
+#picture-column .picture-card{
+ min-height:92px;
+ gap:3px;
+}
