@@ -14,7 +14,7 @@ The left picture column displays concepts in the order of their **English** occu
 
 - `index.html` contains the main interface, English browser recognition, text translation, and playback.
 - `visual-vocabulary.js` creates the picture column. `lib/visual-language.mjs` extends the curated English concepts, filters grammar words, handles inflections and seeks real pictures for otherwise unrecognized meaning-bearing terms. Neither is a full linguistic parser, and more images do not automatically imply semantic correctness.
-- `stability.js` provides visible reject/alternatives buttons and optional swipe/hold gestures. `stability.css` contains its styles. `picture-catalog.js` is the shared provider for real ARASAAC and Iconify images in the main column **and** all picker categories. Emoji are fallbacks, not preferred illustrations. These files must load independently of remote speech-model libraries.
+- `stability.js` places reject/undo and alternatives controls on the word-caption line, with optional swipe/hold gestures. `stability.css` contains its styles. `picture-catalog.js` is the shared provider for real ARASAAC and Iconify images in the main column **and** all picker categories. Emoji are fallbacks, not preferred illustrations. These files must load independently of remote speech-model libraries.
 - `pashto-recognition.js` records bounded short utterances, checks decoded audio and delegates Whisper to `pashto-recognition-worker.js` through `lib/recognition-client.mjs`. The worker loads lazily, is terminated on failures/cancellation/timeouts, and is reused after success. Actual model download/inference passed Chromium/WebKit tests; accuracy and runtime on physical phones **remain unverified**. See `docs/RECOGNITION_RUNTIME.md`.
 - Pashto speech synthesis: **experimental self-hosted eSpeak NG build** in `vendor/pashto-voice/` merged in pull request #2 and deployed from `main`. **Automated** mobile-sized WebKit/Chromium and Node waveform checks passed. Physical phone testing, speaker intelligibility evaluation, and translation quality remain unverified.
 - The public MyMemory text translation endpoint has usage limits and unreliable outputs. It must not be represented as free unlimited reliable translation.
@@ -49,3 +49,7 @@ Treat transcription, translation, and output voice as **separate validated stage
 ## Handoff expectation
 
 At the end of each working session, record which branch and pull request were changed, which tests ran, whether changes reached `main`, and which core capabilities remain unverified. Do not say the app is finished until spoken Pashto works in both directions.
+
+## Runtime source-provider and microphone policy
+
+Picture selection must search **all** available compatible image sources, not force a provider chooser. ARASAAC and Iconify provider responses must be identifiable, with errors visible; include actual network image-decoding smoke tests in addition to mocks. Stop all live browser speech recognition and microphone streams immediately when a page becomes hidden or unloaded; invalidate delayed results. Never knowingly leave a microphone recording in the background.
