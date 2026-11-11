@@ -940,14 +940,20 @@ test('handheld microphones and playback speed control work without changing the 
 });
 
 
-test('translation timeout retries once and displays bilingual failure without inventing a translation',async({page})=>{
- let requests=0;
- await page.route('https://api.mymemory.translated.net/**',route=>{requests++;return route.abort('failed')});
- // The practice buttons sit inside a collapsed details panel; invoke the existing
- // demo entrypoint directly rather than waiting for an invisible button to receive a tap.
- await page.evaluate(()=>document.getElementById('demo-water').click());
- await expect(page.locator('#result')).toContainText('Translation unavailable');
- await expect(page.locator('#status')).toContainText('ژباړه بریالۍ نه شوه');
- await expect(page.locator('#replay')).toBeDisabled();
- expect(requests).toBe(2);
+test('translation network failure retries once and reports bilingual failure',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const originalFetch=window.fetch;
+  let requests=0;
+  window.fetch=async()=>{requests++;throw new TypeError('Network unavailable')};
+  try{
+   await window.pashtoApp.demo('I need water.','en');
+   return {requests,status:document.getElementById('status').textContent,
+    result:document.getElementById('result').textContent,
+    disabled:document.getElementById('replay').disabled};
+  }finally{window.fetch=originalFetch}
+ });
+ expect(result.requests).toBe(2);
+ expect(result.result).toContain('Translation unavailable');
+ expect(result.status).toContain('ژباړه بریالۍ نه شوه');
+ expect(result.disabled).toBe(true);
 });
