@@ -921,8 +921,8 @@ test('long English words retain full-width captions and controls remain right of
 });
 
 test('handheld microphones and playback speed control work without changing the transcript', async ({page}) => {
- await expect(page.locator('#en')).toContainText('🎤');
- await expect(page.locator('#ps')).toContainText('🎤');
+ await expect(page.locator('#en')).toContainText('🎤 🗣️');
+ await expect(page.locator('#ps')).toContainText('🎤 🗣️');
  const speed=page.locator('#playback-speed');
  await expect(speed).toHaveValue('1');
  await speed.selectOption('0.7');
