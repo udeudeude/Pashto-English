@@ -925,9 +925,9 @@ test('handheld microphones and playback speed control work without changing the 
  await expect(page.locator('#ps')).toContainText('🎤 🗣️');
  const speed=page.locator('#playback-speed');
  await expect(speed).toHaveValue('1');
- await speed.selectOption('0.7');
+ await speed.fill('0.7');
  await expect(speed).toHaveValue('0.7');
- await speed.selectOption('1.3');
+ await speed.fill('1.3');
  await expect(speed).toHaveValue('1.3');
  const result=await page.evaluate(async()=>{
    const calls=[];
@@ -937,4 +937,15 @@ test('handheld microphones and playback speed control work without changing the 
    return calls;
  });
  expect(result).toEqual([{text:'سلام',opts:{speed:0.85}}]);
+});
+
+
+test('translation timeout retries once and displays bilingual failure without inventing a translation',async({page})=>{
+ let requests=0;
+ await page.route('https://api.mymemory.translated.net/**',route=>{requests++;return route.abort('failed')});
+ await page.locator('#demo-water').click();
+ await expect(page.locator('#result')).toContainText('Translation unavailable');
+ await expect(page.locator('#status')).toContainText('ژباړه بریالۍ نه شوه');
+ await expect(page.locator('#replay')).toBeDisabled();
+ expect(requests).toBe(2);
 });
