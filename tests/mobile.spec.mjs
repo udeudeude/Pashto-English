@@ -943,7 +943,9 @@ test('handheld microphones and playback speed control work without changing the 
 test('translation timeout retries once and displays bilingual failure without inventing a translation',async({page})=>{
  let requests=0;
  await page.route('https://api.mymemory.translated.net/**',route=>{requests++;return route.abort('failed')});
- await page.locator('#demo-water').click();
+ // The practice buttons sit inside a collapsed details panel; invoke the existing
+ // demo entrypoint directly rather than waiting for an invisible button to receive a tap.
+ await page.evaluate(()=>document.getElementById('demo-water').click());
  await expect(page.locator('#result')).toContainText('Translation unavailable');
  await expect(page.locator('#status')).toContainText('ژباړه بریالۍ نه شوه');
  await expect(page.locator('#replay')).toBeDisabled();
