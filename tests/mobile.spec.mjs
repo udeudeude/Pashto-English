@@ -957,3 +957,28 @@ test('translation network failure retries once and reports bilingual failure',as
  expect(result.status).toContain('ژباړه بریالۍ نه شوه');
  expect(result.disabled).toBe(true);
 });
+
+
+test('iPhone recording reset retains both new speech icons',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const source=await fetch('./pashto-recognition.js?v=4').then(r=>r.text());
+  return {containsNew:source.includes('🎤 🗣️ English')&&source.includes('🎤 🗣️ پښتو'),
+    containsOld:source.includes('🎙')};
+ });
+ expect(result).toEqual({containsNew:true,containsOld:false});
+});
+
+test('moving playback slider replays translation at newly chosen speed',async({page})=>{
+ await page.evaluate(()=>{
+  window.__speedCalls=[];
+  window.pashtoVoice={unlock:()=>{},stop:()=>{},speak:(text,options)=>{
+   window.__speedCalls.push({text,options});return Promise.resolve();
+  }};
+ });
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({responseStatus:200,responseData:{translatedText:'سلام'}})}));
+ await page.locator('#demo-hello').click();
+ await expect(page.locator('#replay')).toBeEnabled();
+ await page.locator('#playback-speed').fill('0.7');
+ await page.locator('#playback-speed').dispatchEvent('change');
+ await expect.poll(()=>page.evaluate(()=>window.__speedCalls.at(-1)?.options.speed)).toBe(0.7);
+});
