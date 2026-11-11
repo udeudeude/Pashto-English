@@ -987,8 +987,8 @@ test('moving playback slider replays translation at newly chosen speed',async({p
  await expect(page.locator('#replay')).toBeEnabled();
  await expect.poll(()=>page.evaluate(()=>window.__speedCalls.length)).toBe(1);
  expect(await page.evaluate(()=>window.__speedCalls[0].options.speed)).toBe(1);
+ // Playwright's range fill already emits change, just as releasing a slider does.
  await page.locator('#playback-speed').fill('0.7');
- await page.locator('#playback-speed').dispatchEvent('change');
  await expect.poll(()=>page.evaluate(()=>window.__speedCalls.length)).toBe(2);
  expect(await page.evaluate(()=>window.__speedCalls[1])).toEqual({text:'سلام',options:{speed:0.7}});
 });
