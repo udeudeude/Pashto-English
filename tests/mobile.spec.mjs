@@ -919,3 +919,22 @@ test('long English words retain full-width captions and controls remain right of
  expect(geometry.labelTop).toBeGreaterThanOrEqual(geometry.controlsBottom-2);
  expect(geometry.labelWidth).toBeGreaterThan(geometry.cardWidth-15);
 });
+
+test('handheld microphones and playback speed control work without changing the transcript', async ({page}) => {
+ await expect(page.locator('#en')).toContainText('🎤');
+ await expect(page.locator('#ps')).toContainText('🎤');
+ const speed=page.locator('#playback-speed');
+ await expect(speed).toHaveValue('1');
+ await speed.selectOption('0.7');
+ await expect(speed).toHaveValue('0.7');
+ await speed.selectOption('1.3');
+ await expect(speed).toHaveValue('1.3');
+ const result=await page.evaluate(async()=>{
+   const calls=[];
+   window.pashtoVoice={speak:(text,opts)=>{calls.push({text,opts});return Promise.resolve()}};
+   document.getElementById('playback-speed').value='0.85';
+   await speak('سلام','ps');
+   return calls;
+ });
+ expect(result).toEqual([{text:'سلام',opts:{speed:0.85}}]);
+});
