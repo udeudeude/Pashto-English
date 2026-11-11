@@ -188,11 +188,11 @@ async function translate(text,source,target){
    if(data.responseStatus!==200||!data.responseData?.translatedText)
     throw Error('Translation failed or free usage limit reached.');
    const candidate=String(data.responseData.translatedText).trim();
-   if(!candidate||/^\\s*\\[[^\\]]+\\]\\s*$/u.test(candidate)||/^\\s*\\([^)]+\\)\\s*$/u.test(candidate))
+   if(!candidate||/^\s*\[[^\]]+\]\s*$/u.test(candidate)||/^\s*\([^)]+\)\s*$/u.test(candidate))
     throw Error('Translation service returned an invalid placeholder.');
-   if(target==='ps'&&!/[\\u0600-\\u06ff]/u.test(candidate))
+   if(target==='ps'&&!/[\u0600-\u06ff]/u.test(candidate))
     throw Error('The service did not return Pashto script.');
-   if(target==='en'&&/[\\u0600-\\u06ff]/u.test(candidate))
+   if(target==='en'&&/[\u0600-\u06ff]/u.test(candidate))
     throw Error('The service did not return English text.');
    return candidate;
   }catch(err){
