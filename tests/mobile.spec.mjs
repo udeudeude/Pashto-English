@@ -80,6 +80,10 @@ test('bundled Pashto voice synthesizes speech on a user tap', async ({page}) => 
   await page.locator('#test-pashto-voice').click();
   await expect(page.locator('#status')).toContainText('Playing / غږېږي', {timeout:90_000});
   await expect(page.locator('#status')).toHaveAttribute('aria-label',/Playing Pashto translation/);
+  // Exercise the genuine bundled synthesizer; a mocked public speak() cannot
+  // detect a wrapper that accidentally discards the selected speed.
+  const speech=await page.evaluate(()=>window.pashtoVoice.speak('سلام',{speed:0.7}));
+  expect(speech.speed).toBe(0.7);
 });
 
 
