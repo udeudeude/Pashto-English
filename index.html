@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14283c"><title>Pashto ↔ English / پښتو ↔ انګلیسي</title><link rel="stylesheet" href="./stability.css?v=3">
 <style>
-:root{font-family:system-ui,-apple-system,sans-serif;color:#16283b;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:22px 16px 50px}h1{font-size:1.5rem;margin:0 0 8px}p{line-height:1.45}.muted{color:#536578}.panel{background:white;border:1px solid #dce3e9;border-radius:20px;padding:20px;margin:18px 0}button{font:inherit;cursor:pointer;border:0;border-radius:18px;padding:18px;min-height:76px}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.english{background:#dbe9ff;color:#173f85}.pashto{background:#d8f3e2;color:#125b35}.choices button{font-size:1.35rem;font-weight:750}.choices small{display:block;font-size:.78rem;margin-top:6px}#status{font-weight:650;min-height:3em}#result{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.3rem;min-height:3em}#original{white-space:pre-wrap;overflow-wrap:anywhere}#replay{width:100%;background:#1c3853;color:white}#replay:disabled{background:#9aa6b0}.playback-speed{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.playback-speed select{font:inherit;padding:10px;border:1px solid #b6c6d6;border-radius:10px;background:white;max-width:50%}details{margin-top:18px}summary{cursor:pointer}#capabilities{line-height:1.6}footer{font-size:.85rem;color:#526477}button:focus-visible{outline:3px solid #c45c10;outline-offset:3px}
+:root{font-family:system-ui,-apple-system,sans-serif;color:#16283b;background:#f5f7fa}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:22px 16px 50px}h1{font-size:1.5rem;margin:0 0 8px}p{line-height:1.45}.muted{color:#536578}.panel{background:white;border:1px solid #dce3e9;border-radius:20px;padding:20px;margin:18px 0}button{font:inherit;cursor:pointer;border:0;border-radius:18px;padding:18px;min-height:76px}button:disabled{opacity:.45;cursor:not-allowed}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.english{background:#dbe9ff;color:#173f85}.pashto{background:#d8f3e2;color:#125b35}.choices button{font-size:1.35rem;font-weight:750}.choices small{display:block;font-size:.78rem;margin-top:6px}#status{font-weight:650;min-height:3em}#result{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.3rem;min-height:3em}#original{white-space:pre-wrap;overflow-wrap:anywhere}#replay{width:100%;background:#1c3853;color:white}#replay:disabled{background:#9aa6b0}.playback-speed{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.playback-speed input{flex:1;min-width:0;accent-color:#173f85;min-height:44px;touch-action:pan-x}details{margin-top:18px}summary{cursor:pointer}#capabilities{line-height:1.6}footer{font-size:.85rem;color:#526477}button:focus-visible{outline:3px solid #c45c10;outline-offset:3px}
 .content-column h1.app-title{font-size:1.2rem;line-height:1.28;overflow-wrap:normal;word-break:normal}
 .app-title span{display:block;max-width:100%;text-wrap:pretty}
 .app-title span[lang="ps"]{font-size:1.1em;unicode-bidi:isolate;margin-top:.16rem;text-align:start}
@@ -39,7 +39,7 @@
 
 </style></head><body><main><h1 class="app-title"><span lang="en" dir="ltr">Pashto ↔ English</span><span lang="ps" dir="rtl">پښتو ↔ انګلیسي</span></h1><p class="screenreader-only">Choose the spoken language. Experimental voice translator. / د خبرې ژبه وټاکئ. دا ازمایښتي غږیز ژباړن دی.</p>
 <section class="panel speech-panel"><div class="choices"><button id="en" class="english" aria-label="Speak English / په انګلیسي خبرې وکړئ">🎤 🗣️ English<small>Speak English / په انګلیسي خبرې وکړئ</small></button><button id="ps" class="pashto" lang="ps" dir="rtl" aria-label="Speak Pashto / په پښتو خبرې وکړئ">🎤 🗣️ پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small></button></div><p id="status" role="status" aria-live="polite">…</p></section>
-<section class="panel translation-panel"><p class="muted translation-label">Translation / ژباړه</p><div id="result" aria-live="polite" aria-label="Nothing translated yet / لا ژباړه نشته">…</div><button id="replay" disabled>▶ Replay / بیا واورئ</button><div class="playback-speed"><label for="playback-speed">Playback speed / د غږ سرعت</label><select id="playback-speed"><option value="0.7">0.7×</option><option value="0.85">0.85×</option><option value="1" selected>1×</option><option value="1.15">1.15×</option><option value="1.3">1.3×</option></select></div><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
+<section class="panel translation-panel"><p class="muted translation-label">Translation / ژباړه</p><div id="result" aria-live="polite" aria-label="Nothing translated yet / لا ژباړه نشته">…</div><button id="replay" disabled>▶ Replay / بیا واورئ</button><div class="playback-speed"><span aria-hidden="true">🐢</span><input id="playback-speed" type="range" min="0.7" max="1.3" step="0.15" value="1" aria-label="Playback speed / د غږ سرعت"><span aria-hidden="true">🐇</span></div><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
 
 <section class="panel share-section" aria-labelledby="share-heading">
 <h2 id="share-heading">Share this app / دا اپ شریک کړئ</h2>
@@ -172,27 +172,35 @@ function speak(text,lang){
  window.speechSynthesis.speak(utterance);
 }
 async function translate(text,source,target){
- const abort=new AbortController();
- const deadline=setTimeout(()=>abort.abort(),20000);
- try{
-  const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
-  const response=await fetch(url,{signal:abort.signal});
-  if(!response.ok)throw Error('Translation service unavailable ('+response.status+').');
-  const data=await response.json();
-  if(data.responseStatus!==200||!data.responseData?.translatedText)
-   throw Error('Translation failed or free usage limit reached.');
-  const candidate=String(data.responseData.translatedText).trim();
-  if(!candidate||/^\s*\[[^\]]+\]\s*$/u.test(candidate)||/^\s*\([^)]+\)\s*$/u.test(candidate))
-   throw Error('Translation service returned an invalid placeholder.');
-  if(target==='ps'&&!/[\u0600-\u06ff]/u.test(candidate))
-   throw Error('The service did not return Pashto script.');
-  if(target==='en'&&/[\u0600-\u06ff]/u.test(candidate))
-   throw Error('The service did not return English text.');
-  return candidate;
- }catch(err){
-  if(err.name==='AbortError')throw Error('The translation service did not respond in time.');
-  throw err;
- }finally{clearTimeout(deadline)}
+ const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
+ let lastError;
+ for(let attempt=0;attempt<2;attempt++){
+  const abort=new AbortController();
+  const deadline=setTimeout(()=>abort.abort(),attempt===0?9000:12000);
+  try{
+   const response=await fetch(url,{signal:abort.signal,cache:'no-store'});
+   if(!response.ok){
+    const error=Error('Translation service unavailable ('+response.status+').');
+    error.retryable=response.status===429||response.status>=500;
+    throw error;
+   }
+   const data=await response.json();
+   if(data.responseStatus!==200||!data.responseData?.translatedText)
+    throw Error('Translation failed or free usage limit reached.');
+   const candidate=String(data.responseData.translatedText).trim();
+   if(!candidate||/^\\s*\\[[^\\]]+\\]\\s*$/u.test(candidate)||/^\\s*\\([^)]+\\)\\s*$/u.test(candidate))
+    throw Error('Translation service returned an invalid placeholder.');
+   if(target==='ps'&&!/[\\u0600-\\u06ff]/u.test(candidate))
+    throw Error('The service did not return Pashto script.');
+   if(target==='en'&&/[\\u0600-\\u06ff]/u.test(candidate))
+    throw Error('The service did not return English text.');
+   return candidate;
+  }catch(err){
+   lastError=err.name==='AbortError'?Error('The translation service did not respond in time.'):err;
+   if(attempt===1||!(err.name==='AbortError'||err.name==='TypeError'||err.retryable))break;
+  }finally{clearTimeout(deadline)}
+ }
+ throw lastError;
 }
 function clearTranslation(){
  lastSpeech=null;
@@ -255,7 +263,7 @@ async function processTranscript(heard,source,session){
   speak(output,target);
   return true;
  }catch(err){
-  fail(err?.message||'Translation failed.',session);
+  fail((err?.message||'Translation failed.')+' / ژباړه بریالۍ نه شوه. مهرباني وکړئ بیا هڅه وکړئ.',session);
   return false;
  }
 }
