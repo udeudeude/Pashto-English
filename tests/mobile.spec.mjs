@@ -80,6 +80,10 @@ test('bundled Pashto voice synthesizes speech on a user tap', async ({page}) => 
   await page.locator('#test-pashto-voice').click();
   await expect(page.locator('#status')).toContainText('Playing / غږېږي', {timeout:90_000});
   await expect(page.locator('#status')).toHaveAttribute('aria-label',/Playing Pashto translation/);
+  // Exercise the genuine bundled synthesizer; a mocked public speak() cannot
+  // detect a wrapper that accidentally discards the selected speed.
+  const speech=await page.evaluate(()=>window.pashtoVoice.speak('سلام',{speed:0.7}));
+  expect(speech.speed).toBe(0.7);
 });
 
 
@@ -956,4 +960,35 @@ test('translation network failure retries once and reports bilingual failure',as
  expect(result.result).toContain('Translation unavailable');
  expect(result.status).toContain('ژباړه بریالۍ نه شوه');
  expect(result.disabled).toBe(true);
+});
+
+
+test('iPhone recording reset retains both new speech icons',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const source=await fetch('./pashto-recognition.js?v=4').then(r=>r.text());
+  return {containsNew:source.includes('🎤 🗣️ English')&&source.includes('🎤 🗣️ پښتو'),
+    containsOld:source.includes('🎙')};
+ });
+ expect(result).toEqual({containsNew:true,containsOld:false});
+});
+
+test('moving playback slider replays translation at newly chosen speed',async({page})=>{
+ await page.evaluate(()=>{
+  window.__speedCalls=[];
+  window.pashtoVoice={unlock:()=>{},stop:()=>{},speak:(text,options)=>{
+   window.__speedCalls.push({text,options});return Promise.resolve();
+  }};
+ });
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({responseStatus:200,responseData:{translatedText:'سلام'}})}));
+ // Demonstrations are intentionally inside a collapsed self-test panel on phones.
+ // Invoke the same registered click handler without depending on panel visibility.
+ await page.evaluate(()=>document.getElementById('demo-hello').click());
+ await expect(page.locator('#result')).toHaveText('سلام');
+ await expect(page.locator('#replay')).toBeEnabled();
+ await expect.poll(()=>page.evaluate(()=>window.__speedCalls.length)).toBe(1);
+ expect(await page.evaluate(()=>window.__speedCalls[0].options.speed)).toBe(1);
+ // Playwright's range fill already emits change, just as releasing a slider does.
+ await page.locator('#playback-speed').fill('0.7');
+ await expect.poll(()=>page.evaluate(()=>window.__speedCalls.length)).toBe(2);
+ expect(await page.evaluate(()=>window.__speedCalls[1])).toEqual({text:'سلام',options:{speed:0.7}});
 });

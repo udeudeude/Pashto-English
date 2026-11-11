@@ -362,6 +362,13 @@ $('replay').onclick=()=>{
  if(lastSpeech.lang==='ps')window.pashtoVoice?.unlock();
  speak(lastSpeech.text,lastSpeech.lang);
 };
+// Changing the speed immediately restarts the current translation at the new rate.
+// This also works after playback has ended; no reading or second tap is required.
+$('playback-speed').addEventListener('change',()=>{
+ if(!lastSpeech||$('replay').disabled)return;
+ if(lastSpeech.lang==='ps')window.pashtoVoice?.unlock();
+ speak(lastSpeech.text,lastSpeech.lang);
+});
 for(const [id,source,phrase] of [
  ['demo-hello','en','Hello.'],
  ['demo-water','en','I need water.'],
@@ -373,4 +380,4 @@ for(const [id,source,phrase] of [
 }
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=capabilityReport;
 capabilityReport();
-</script><script src="./picture-catalog.js?v=2"></script><script type="module" src="./visual-vocabulary.js?v=12"></script><script defer src="./stability.js?v=4"></script><script defer src="./pashto-voice.js?v=2"></script><script type="module" src="./pashto-recognition.js?v=3"></script></body></html>
+</script><script src="./picture-catalog.js?v=2"></script><script type="module" src="./visual-vocabulary.js?v=12"></script><script defer src="./stability.js?v=4"></script><script defer src="./pashto-voice.js?v=3"></script><script type="module" src="./pashto-recognition.js?v=4"></script></body></html>

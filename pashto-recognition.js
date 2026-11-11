@@ -27,8 +27,8 @@ function explainInputFailure(error,language){
  return 'English speech recognition failed. Please try again. / د انګلیسي غږ پېژندنه ناکامه شوه. بیا هڅه وکړئ.';
 }
 const labels={
- ps:'🎙 پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small>',
- en:'🎙 English<small>Speak English / په انګلیسي خبرې وکړئ</small>'
+ ps:'🎤 🗣️ پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small>',
+ en:'🎤 🗣️ English<small>Speak English / په انګلیسي خبرې وکړئ</small>'
 };
 function resetButton(lang){
  const button=buttons[lang];

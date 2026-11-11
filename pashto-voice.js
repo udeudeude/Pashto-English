@@ -84,9 +84,9 @@
     notify('Playing Pashto translation. Speech is experimental.','د پښتو ژباړې غږ غږول کېږي. دا ازمایښتي دی.');
     return {duration:buffer.duration,sampleRate:generated.sampleRate,speed:boundedSpeed};
   }
-  async function tryVoice(text){
+  async function tryVoice(text,options={}){
     unlock();
-    try{return await speakPashto(text)}
+    try{return await speakPashto(text,options)}
     catch(error){
       notify('Pashto voice unavailable: '+error.message,'د پښتو غږ کار نه کوي. مهرباني وکړئ بیا هڅه وکړئ.');
       throw error;
