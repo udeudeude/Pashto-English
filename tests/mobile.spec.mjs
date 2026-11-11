@@ -976,9 +976,15 @@ test('moving playback slider replays translation at newly chosen speed',async({p
   }};
  });
  await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({responseStatus:200,responseData:{translatedText:'سلام'}})}));
- await page.locator('#demo-hello').click();
+ // Demonstrations are intentionally inside a collapsed self-test panel on phones.
+ // Invoke the same registered click handler without depending on panel visibility.
+ await page.evaluate(()=>document.getElementById('demo-hello').click());
+ await expect(page.locator('#result')).toHaveText('سلام');
  await expect(page.locator('#replay')).toBeEnabled();
+ await expect.poll(()=>page.evaluate(()=>window.__speedCalls.length)).toBe(1);
+ expect(await page.evaluate(()=>window.__speedCalls[0].options.speed)).toBe(1);
  await page.locator('#playback-speed').fill('0.7');
  await page.locator('#playback-speed').dispatchEvent('change');
- await expect.poll(()=>page.evaluate(()=>window.__speedCalls.at(-1)?.options.speed)).toBe(0.7);
+ await expect.poll(()=>page.evaluate(()=>window.__speedCalls.length)).toBe(2);
+ expect(await page.evaluate(()=>window.__speedCalls[1])).toEqual({text:'سلام',options:{speed:0.7}});
 });
