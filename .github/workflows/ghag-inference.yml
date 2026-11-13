@@ -36,6 +36,11 @@ jobs:
       - name: Inspect pinned checkpoint metadata without downloading weights
         run: |
           python experiments/ghag-conversion.py inspect --revision "$(cat experiment-results/ghag/revision.txt)" --output experiment-results/ghag/inspect
+      - name: Print public model artifact metadata
+        if: always()
+        run: |
+          cat experiment-results/ghag/upstream.json
+          cat experiment-results/ghag/inspect/report.json
       - name: Record Python environment
         if: always()
         run: python -m pip freeze > experiment-results/ghag/pip-freeze.txt
