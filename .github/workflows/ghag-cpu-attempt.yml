@@ -18,10 +18,25 @@ jobs:
       - name: Install pinned original inference dependencies
         run: |
           python -m pip install --disable-pip-version-check 'huggingface_hub==0.26.5' 'TTS==0.22.0' 'soundfile==0.12.1' 'numpy<2'
+      - name: Select a published speaker identifier
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from huggingface_hub import hf_hub_download
+          p=hf_hub_download(repo_id='Nasimbahar/pashto-ghag-yourtts',filename='KNOWN_SPEAKERS.json',revision='4b2521265c173a1f6b2df9584a57046cdbe614a9')
+          speakers=json.loads(Path(p).read_text())
+          if not speakers: raise SystemExit('No published speakers')
+          first=speakers[0] if isinstance(speakers,list) else next(iter(speakers))
+          speaker=first if isinstance(first,str) else first.get('id') or first.get('label') or first.get('name')
+          if not speaker: raise SystemExit('Unrecognized speaker metadata structure')
+          Path('speaker-id.txt').write_text(str(speaker))
+          print('Selected published speaker:',speaker)
+          PY
       - name: Attempt actual pinned Ghag inference
         run: |
           mkdir -p experiment-results/ghag/cpu
-          python experiments/ghag-conversion.py infer --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 --accept-download --speaker ghag-speaker-01 --output experiment-results/ghag/cpu
+          python experiments/ghag-conversion.py infer --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 --accept-download --speaker "$(cat speaker-id.txt)" --output experiment-results/ghag/cpu
       - name: Record dependency versions and report
         if: always()
         run: |
