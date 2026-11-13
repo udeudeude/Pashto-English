@@ -1,12 +1,18 @@
 name: Ghag actual inference feasibility
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/ghag-upstream-execution
+    paths:
+      - '.github/workflows/ghag-inference.yml'
+      - 'scripts/probe-ghag-artifacts.py'
 permissions:
   contents: read
 jobs:
   ghag-inference:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,6 +36,11 @@ jobs:
       - name: Inspect pinned checkpoint metadata without downloading weights
         run: |
           python experiments/ghag-conversion.py inspect --revision "$(cat experiment-results/ghag/revision.txt)" --output experiment-results/ghag/inspect
+      - name: Print public model artifact metadata
+        if: always()
+        run: |
+          cat experiment-results/ghag/upstream.json
+          cat experiment-results/ghag/inspect/report.json
       - name: Record Python environment
         if: always()
         run: python -m pip freeze > experiment-results/ghag/pip-freeze.txt
