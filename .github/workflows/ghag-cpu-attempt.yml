@@ -1,0 +1,39 @@
+name: Ghag original CPU synthesis attempt
+on:
+  push:
+    branches: [experiment/ghag-speaker-inference]
+    paths: ['.github/workflows/ghag-cpu-attempt.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthesize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install pinned original inference dependencies
+        run: |
+          python -m pip install --disable-pip-version-check 'huggingface_hub==0.26.5' 'TTS==0.22.0' 'soundfile==0.12.1' 'numpy<2'
+      - name: Attempt actual pinned Ghag inference
+        run: |
+          mkdir -p experiment-results/ghag/cpu
+          python experiments/ghag-conversion.py infer --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 --accept-download --speaker ghag-speaker-01 --output experiment-results/ghag/cpu
+      - name: Record dependency versions and report
+        if: always()
+        run: |
+          mkdir -p experiment-results/ghag/cpu
+          python -m pip freeze > experiment-results/ghag/cpu/pip-freeze.txt
+          if test -f experiment-results/ghag/cpu/report.json; then cat experiment-results/ghag/cpu/report.json; fi
+      - name: Preserve diagnostic report only, never weights or audio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghag-cpu-inference-report
+          path: |
+            experiment-results/ghag/cpu/report.json
+            experiment-results/ghag/cpu/pip-freeze.txt
+          if-no-files-found: warn
