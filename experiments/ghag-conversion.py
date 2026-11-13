@@ -60,6 +60,13 @@ def run(args):
         # dependency conflicts are an experiment result, not a reason to guess.
         from TTS.api import TTS
         import soundfile as sf
+        if getattr(args, 'diagnostic_identity_cleaner', False):
+            # Diagnostic only: do NOT claim this matches the missing trained cleaner.
+            from TTS.tts.utils.text import cleaners
+            if hasattr(cleaners, 'pashto_grapheme_cleaners'):
+                raise RuntimeError('Original Pashto cleaner now exists; remove diagnostic override')
+            cleaners.pashto_grapheme_cleaners = lambda text: text
+            report['text_cleaner_override'] = 'IDENTITY_DIAGNOSTIC_UNVERIFIED'
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
                   config_path=str(config), progress_bar=False, gpu=False)
@@ -97,6 +104,7 @@ def main():
     parser.add_argument("--output", default="experiment-results/ghag")
     parser.add_argument("--accept-download", action="store_true")
     parser.add_argument("--speaker", help="Published speaker name or identifier")
+    parser.add_argument("--diagnostic-identity-cleaner", action="store_true", help="UNVERIFIED identity cleaner solely to diagnose subsequent loading blockers")
     args = parser.parse_args()
     result = run(args)
     print(json.dumps(result, indent=2, ensure_ascii=False))
