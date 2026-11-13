@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import sys
 import time
+import traceback
 import resource
 
 REPO = "Nasimbahar/pashto-ghag-yourtts"
@@ -97,7 +98,8 @@ def run(args):
         # durations and waveform decoding. No unvalidated dummy ONNX is emitted.
         raise NotImplementedError("Full conditional YourTTS ONNX export is not established. Inspect model graph, text frontend, speaker embeddings and dynamic axes before implementing an export adapter.")
     except Exception as error:
-        report["errors"].append({"type": type(error).__name__, "message": str(error)})
+        report["errors"].append({"type": type(error).__name__, "message": str(error),
+                                 "traceback": traceback.format_exc(limit=12)})
     finally:
         (output / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     return report
