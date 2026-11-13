@@ -58,7 +58,9 @@
     // Produces signed, 16-bit, 22,050 Hz mono samples.
     // Adjust synthesis rate rather than sample playback speed to preserve pitch.
     const boundedSpeed=Math.max(0.7,Math.min(1.3,Number(speed)||1));
-    const generated=espeak.synthesize(text,{rate:Math.round(175*boundedSpeed)});
+    const {normalizeSpeechText}=await import('./lib/voice-fallback.mjs');
+    if(version!==playVersion)return {cancelled:true};
+    const generated=espeak.synthesize(normalizeSpeechText(text),{rate:Math.round(175*boundedSpeed)});
     if(!generated.samples?.length || !Number.isFinite(generated.sampleRate))
       throw Error('The Pashto voice returned no playable audio.');
     const samples=generated.samples;
