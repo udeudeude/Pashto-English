@@ -36,6 +36,8 @@ def run(args):
         api = HfApi()
         info = api.model_info(REPO, revision=args.revision)
         report["resolved_revision"] = info.sha
+        if info.sha != args.revision:
+            raise RuntimeError("Resolved model revision does not match pinned commit")
         if args.stage == "inspect":
             report["files"] = [{"name": f.rfilename, "size": f.size} for f in info.siblings]
             return report
@@ -84,7 +86,7 @@ def run(args):
     except Exception as error:
         report["errors"].append({"type": type(error).__name__, "message": str(error)})
     finally:
-        (output / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\\n")
+        (output / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     return report
 
 
