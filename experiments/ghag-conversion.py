@@ -7,11 +7,10 @@ This is an *experiment*: failures are recorded and never presented as success.
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
-import subprocess
 import sys
 import time
+import resource
 
 REPO = "Nasimbahar/pashto-ghag-yourtts"
 TEXT = "سلام، تاسو څنګه یاست؟"
@@ -71,6 +70,7 @@ def run(args):
         tts = TTS(model_path=str(local / "best_model.pth"),
                   config_path=str(config), progress_bar=False, gpu=False)
         report["load_seconds"] = round(time.monotonic() - t0, 2)
+        report["peak_rss_kib_after_load"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         speaker = args.speaker
         if not speaker:
             raise RuntimeError("Specify --speaker from the model's published speaker metadata; do not invent a speaker ID")
@@ -82,6 +82,12 @@ def run(args):
         if audio.size == 0 or not np.isfinite(audio).all() or float(np.max(np.abs(audio))) < 0.0001:
             raise RuntimeError("Generated audio is silent or invalid")
         sample_rate = int(tts.synthesizer.output_sample_rate)
+        peak = float(np.max(np.abs(audio)))
+        rms = float(np.sqrt(np.mean(np.square(audio, dtype=np.float64))))
+        report["waveform"] = {"peak": round(peak, 6), "rms": round(rms, 6),
+                              "clipped_fraction": round(float(np.mean(np.abs(audio) >= 0.999)), 6)}
+        report["peak_rss_kib_after_inference"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        report["realtime_factor"] = round(report["inference_seconds"] / (audio.size / sample_rate), 3)
         sf.write(str(output / "ghag-baseline.wav"), audio, sample_rate)
         report.update(inference_verified=True, samples=int(audio.size), sample_rate=sample_rate,
                       duration_seconds=round(audio.size / sample_rate, 3))
