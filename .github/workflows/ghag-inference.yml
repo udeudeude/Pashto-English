@@ -6,6 +6,7 @@ on:
       - experiment/ghag-upstream-execution
     paths:
       - '.github/workflows/ghag-inference.yml'
+      - 'scripts/probe-ghag-artifacts.py'
 permissions:
   contents: read
 jobs:
