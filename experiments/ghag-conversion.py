@@ -36,7 +36,9 @@ def run(args):
         api = HfApi()
         info = api.model_info(REPO, revision=args.revision)
         report["resolved_revision"] = info.sha
-        if info.sha != args.revision:\n            raise RuntimeError("Resolved model revision does not match pinned commit")\n        if args.stage == "inspect":
+        if info.sha != args.revision:
+            raise RuntimeError("Resolved model revision does not match pinned commit")
+        if args.stage == "inspect":
             report["files"] = [{"name": f.rfilename, "size": f.size} for f in info.siblings]
             return report
         if not args.accept_download:
