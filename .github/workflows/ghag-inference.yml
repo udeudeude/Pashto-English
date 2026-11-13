@@ -1,12 +1,17 @@
 name: Ghag actual inference feasibility
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - experiment/ghag-upstream-execution
+    paths:
+      - '.github/workflows/ghag-inference.yml'
 permissions:
   contents: read
 jobs:
   ghag-inference:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
