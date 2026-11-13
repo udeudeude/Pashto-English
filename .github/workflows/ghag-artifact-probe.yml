@@ -1,0 +1,20 @@
+name: Inspect Ghag inference artifacts
+on:
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify probe offline
+        run: python -m unittest discover -s tests -p test_ghag_probe.py
+      - name: Inspect upstream metadata without downloading weights
+        run: python scripts/probe-ghag-artifacts.py > ghag-artifact-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ghag-artifact-report
+          path: ghag-artifact-report.json
