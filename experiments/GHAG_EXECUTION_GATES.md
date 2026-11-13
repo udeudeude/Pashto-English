@@ -4,9 +4,9 @@ This is an evidence-based status register, not a claim that a neural voice is av
 
 | Gate | Evidence required | Status on 2026-11-13 |
 | --- | --- | --- |
-| 1. Diagnose current inference | Exact error from actual checkpoint run | Completed: missing `pashto_grapheme_cleaners` in Coqui 0.22.0 |
+| 1. Diagnose current inference | Exact error from actual checkpoint run | Completed: missing `pashto_grapheme_cleaners` in Coqui 0.22.0; identity-cleaner diagnostic then exposed `ValueError: Unsupported file type` during initialization; full traceback run pending |
 | 2. Reproduce text frontend and speaker selection | Documented cleaner implementation, correct symbol mapping and published speaker ID | Blocked: original cleaner implementation not yet recovered; diagnostic identity override is **not** a substitute |
-| 3. Generate real neural audio | Non-silent waveform, known revision, speaker, input, sample rate, hashes | Pending diagnostic rerun; do not claim correct Pashto pronunciation |
+| 3. Generate real neural audio | Non-silent waveform, known revision, speaker, input, sample rate, hashes | Blocked on model initialization; no neural waveform generated |
 | 4. Measure speed and memory | Peak memory, model load seconds, real-time factor, clipping | Instrumentation added; no successful measurement yet |
 | 5. Compression | Repeatable quantization with quality/performance comparison | Not started; baseline inference required |
 | 6. ONNX conversion | Exported graph plus numerical parity tests | Not started; original inference required |
@@ -19,3 +19,7 @@ This is an evidence-based status register, not a claim that a neural voice is av
 **Model facts:** pinned Ghag revision `4b2521265c173a1f6b2df9584a57046cdbe614a9`, main weights 1,078,558,774 bytes, speaker encoder 44,610,930 bytes. The published helper supports `speakers.pth` d-vectors, and `KNOWN_SPEAKERS.json` contains 11 entries. This does **not** prove the speaker encoder can be omitted for all voices.
 
 **Safety:** Do not load untrusted model pickle files outside an isolated runner. Do not upload weights, private speech, or generated speaker recordings to public artifacts. The identity-cleaner override is solely a diagnostic to expose later load failures; its audio, if produced, is not a validated Pashto voice. Never replace the existing eSpeak engine until real browser playback and fallback have been demonstrated.
+
+## Latest observed failure (2026-11-13)
+
+The CPU workflow run 43510637777 downloaded the pinned checkpoint and reported `ValueError: Unsupported file type` after the explicitly unverified identity-cleaner override. It did not produce audio. A new run (43526987647) captures a Python traceback to locate the rejecting component. Do not interpret the identity override as a production Pashto normalizer.
