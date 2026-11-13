@@ -2,7 +2,7 @@ name: Ghag original CPU synthesis attempt
 on:
   push:
     branches: [experiment/ghag-speaker-inference]
-    paths: ['.github/workflows/ghag-cpu-attempt.yml']
+    paths: ['.github/workflows/ghag-cpu-attempt.yml', 'experiments/ghag-conversion.py']
   workflow_dispatch:
 permissions:
   contents: read
