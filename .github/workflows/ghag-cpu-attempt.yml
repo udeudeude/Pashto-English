@@ -36,7 +36,7 @@ jobs:
       - name: Attempt actual pinned Ghag inference
         run: |
           mkdir -p experiment-results/ghag/cpu
-          python experiments/ghag-conversion.py infer --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 --accept-download --speaker "$(cat speaker-id.txt)" --output experiment-results/ghag/cpu
+          python experiments/ghag-conversion.py infer --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 --accept-download --diagnostic-identity-cleaner --speaker "$(cat speaker-id.txt)" --output experiment-results/ghag/cpu
       - name: Record dependency versions and report
         if: always()
         run: |
