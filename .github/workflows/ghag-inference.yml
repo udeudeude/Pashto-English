@@ -1,0 +1,42 @@
+name: Ghag actual inference feasibility
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ghag-inference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install experiment metadata dependencies
+        run: python -m pip install --disable-pip-version-check 'huggingface_hub==0.26.5'
+      - name: Resolve upstream revision and preserve metadata
+        run: |
+          mkdir -p experiment-results/ghag
+          python scripts/probe-ghag-artifacts.py > experiment-results/ghag/upstream.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('experiment-results/ghag/upstream.json').read_text())
+          revision=report['revision']
+          if not revision or len(revision)!=40:
+              raise SystemExit('No immutable upstream revision')
+          Path('experiment-results/ghag/revision.txt').write_text(revision)
+          PY
+      - name: Inspect pinned checkpoint metadata without downloading weights
+        run: |
+          python experiments/ghag-conversion.py inspect --revision "$(cat experiment-results/ghag/revision.txt)" --output experiment-results/ghag/inspect
+      - name: Record Python environment
+        if: always()
+        run: python -m pip freeze > experiment-results/ghag/pip-freeze.txt
+      - name: Upload reproducible evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghag-pinned-metadata
+          path: experiment-results/ghag/
+          if-no-files-found: warn
