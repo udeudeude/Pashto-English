@@ -41,6 +41,8 @@ jobs:
         run: python3 -m unittest discover -s tests -p test_ghag_probe.py
       - name: Check Ghag conversion experiment and reports
         run: python3 -m py_compile experiments/ghag-conversion.py && python3 -m unittest discover -s tests -p test_ghag_conversion.py
+      - name: Test pinned Ghag workflow invariants
+        run: python3 -m unittest discover -s tests -p test_ghag_workflow.py
       - name: Test readable recognition failure messages
         run: npm run test:speech-errors
       - name: Test recognition worker recovery
