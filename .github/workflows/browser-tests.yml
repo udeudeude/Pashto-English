@@ -39,6 +39,8 @@ jobs:
         run: node --test tests/voice-fallback.test.mjs
       - name: Test Ghag artifact probe offline
         run: python3 -m unittest discover -s tests -p test_ghag_probe.py
+      - name: Check Ghag conversion experiment syntax
+        run: python3 -m py_compile experiments/ghag-conversion.py
       - name: Test readable recognition failure messages
         run: npm run test:speech-errors
       - name: Test recognition worker recovery
