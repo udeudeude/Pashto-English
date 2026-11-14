@@ -21,7 +21,8 @@ OUR_DIAGNOSTIC_INPUT = "سلام، تاسو څنګه یاست؟"
 
 
 def diagnose():
-    info = HfApi().model_info(REPO, revision=REV)
+    api = HfApi()
+    info = api.model_info(REPO, revision=REV)
     if info.sha != REV:
         raise RuntimeError("Pinned upstream revision mismatch")
     config_path = Path(hf_hub_download(repo_id=REPO, filename="config.json", revision=REV))
@@ -55,6 +56,34 @@ def diagnose():
         if has_definition:
             declared_definitions.append(filename)
 
+    # Inspect the model's prior published revisions for the missing cleaner,
+    # without fetching weights or executing upstream scripts.
+    historical_python_scan = []
+    for commit in api.list_repo_commits(REPO)[:8]:
+        if commit.commit_id == REV:
+            continue
+        historical_info = api.model_info(REPO, revision=commit.commit_id)
+        entry = {"revision": commit.commit_id, "python_files": [],
+                 "cleaner_definition_found": False}
+        for sibling in historical_info.siblings:
+            filename = sibling.rfilename
+            if not filename.endswith(".py"):
+                continue
+            if sibling.size and sibling.size > 300_000:
+                entry["python_files"].append({
+                    "path": filename, "inspected": False, "reason": "size_limit"})
+                continue
+            source_bytes = Path(hf_hub_download(
+                repo_id=REPO, filename=filename,
+                revision=commit.commit_id)).read_bytes()
+            body = source_bytes.decode("utf-8")
+            has_definition = ("def " + CLEANER + "(") in body
+            entry["python_files"].append({
+                "path": filename, "sha256": hashlib.sha256(source_bytes).hexdigest(),
+                "defines_original_cleaner": has_definition, "inspected": True})
+            entry["cleaner_definition_found"] |= has_definition
+        historical_python_scan.append(entry)
+
     samples = [
         {"origin": "experiment_input", "text": OUR_DIAGNOSTIC_INPUT},
         {"origin": "pinned_model_card_example", "text": PUBLIC_DEMO},
@@ -78,6 +107,9 @@ def diagnose():
         "source_files": source_files,
         "upstream_cleaner_definition_found": bool(declared_definitions),
         "upstream_cleaner_definition_paths": declared_definitions,
+        "historical_python_source_scan": historical_python_scan,
+        "historical_cleaner_definition_found": any(
+            entry["cleaner_definition_found"] for entry in historical_python_scan),
         "sample_audits": audits,
         "unsupported_sample_characters": unsupported_total,
         "candidate_normalization": "NFC, remove directional marks, normalize nonbreaking spaces only",
