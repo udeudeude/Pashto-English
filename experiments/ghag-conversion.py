@@ -91,6 +91,8 @@ def run(args):
               "inference_verified": False, "onnx_export_verified": False,
               "browser_verified": False, "steps": [], "errors": []}
     try:
+        if getattr(args, "public_fleurs_reference", False) and args.diagnostic_synthetic_reference:
+            raise ValueError("Choose only one experimental speaker reference source")
         from huggingface_hub import HfApi, snapshot_download
         api = HfApi()
         info = api.model_info(REPO, revision=args.revision)
@@ -160,10 +162,12 @@ def run(args):
         else:
             # A speaker-ID table cannot be loaded as precomputed d-vectors.
             # The original model expects 512-dimensional external conditioning.
-            if not args.diagnostic_synthetic_reference:
+            if not (args.diagnostic_synthetic_reference or
+                    getattr(args, "public_fleurs_reference", False)):
                 raise RuntimeError("Published speakers.pth maps speaker names to integers, not d-vectors. "
-                                   "Pass --diagnostic-synthetic-reference ONLY for a non-speech model-loading "
-                                   "probe; a real voice requires a licensed reference recording.")
+                                   "Supply an explicit experimental speaker-reference source: "
+                                   "--public-fleurs-reference for licensed human speech, or "
+                                   "--diagnostic-synthetic-reference for a non-speech loader probe.")
             model_args = config_data.get("model_args")
             if not isinstance(model_args, dict):
                 raise ValueError("Ghag config has no model_args object")
@@ -171,9 +175,17 @@ def run(args):
             model_args["d_vector_file"] = None
             model_args["speaker_encoder_model_path"] = str(local / "model_se.pth")
             model_args["speaker_encoder_config_path"] = str(local / "config_se.json")
-            reference_wav = output / "diagnostic-reference.wav"
-            make_diagnostic_reference(reference_wav)
-            report["speaker_conditioning"] = "SYNTHETIC_NON_SPEECH_PROBE_UNVERIFIED"
+            if getattr(args, "public_fleurs_reference", False):
+                # CC BY 4.0 Pashto speech stays local to the isolated runner.
+                # A genuine reference does NOT resolve the missing training cleaner.
+                from ghag_public_reference import fetch_reference
+                reference_wav = output / "fleurs-public-reference.wav"
+                report["public_reference_provenance"] = fetch_reference(reference_wav)
+                report["speaker_conditioning"] = "PUBLIC_FLEURS_HUMAN_SPEECH_UNVERIFIED"
+            else:
+                reference_wav = output / "diagnostic-reference.wav"
+                make_diagnostic_reference(reference_wav)
+                report["speaker_conditioning"] = "SYNTHETIC_NON_SPEECH_PROBE_UNVERIFIED"
         converted_config = local / 'config-converted.json'
         converted_config.write_text(json.dumps(config_data), encoding='utf-8')
         t0 = time.monotonic()
@@ -232,6 +244,7 @@ def main():
     parser.add_argument("--speaker", help="Published speaker name or identifier")
     parser.add_argument("--diagnostic-identity-cleaner", action="store_true", help="UNVERIFIED identity cleaner solely to diagnose subsequent loading blockers")
     parser.add_argument("--diagnostic-synthetic-reference", action="store_true", help="UNVERIFIED synthesized tone used to probe speaker encoder without speech or private recordings")
+    parser.add_argument("--public-fleurs-reference", action="store_true", help="Use one CC BY 4.0 Pashto FLEURS human recording in an isolated experiment; never publish it or claim text-cleaner parity")
     args = parser.parse_args()
     result = run(args)
     print(json.dumps(result, indent=2, ensure_ascii=False))
