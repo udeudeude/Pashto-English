@@ -7,11 +7,11 @@ This is an *experiment*: failures are recorded and never presented as success.
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
-import subprocess
 import sys
 import time
+import traceback
+import resource
 
 REPO = "Nasimbahar/pashto-ghag-yourtts"
 TEXT = "سلام، تاسو څنګه یاست؟"
@@ -23,6 +23,65 @@ def sha256(path):
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def configure_speaker_embedding_paths(config_data, speaker_json):
+    """Coqui VitsArgs/VitsConfig declare d_vector_file as List[str].
+
+    Passing a string makes Coqpit coerce it into individual characters,
+    then EmbeddingManager tries to open '/' as a file. Keep both config
+    levels aligned because VitsConfig.__post_init__ copies model_args.
+    """
+    model_args = config_data.get("model_args")
+    if not isinstance(model_args, dict):
+        raise ValueError("Ghag config is missing the VITS model_args object")
+    paths = [str(speaker_json)]
+    config_data["d_vector_file"] = paths
+    model_args["d_vector_file"] = paths
+    return config_data
+
+
+def classify_speaker_metadata(payload):
+    """Distinguish Coqui clip d-vectors from integer speaker ID mappings."""
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("Speaker metadata is not a nonempty dictionary")
+    values = list(payload.values())
+    if all(type(value) is int for value in values):
+        return "speaker_id_map"
+    if all(isinstance(value, dict) and isinstance(value.get("name"), str)
+           and isinstance(value.get("embedding"), (list, tuple))
+           for value in values):
+        return "clip_d_vectors"
+    raise ValueError("Unrecognized speaker metadata schema; not assuming d-vectors")
+
+
+def make_diagnostic_reference(path, sample_rate=16000):
+    """Generate a deterministic *non-speech* signal for loader diagnostics only."""
+    import numpy as np
+    import soundfile as sf
+    seconds = 4
+    timeline = np.arange(sample_rate * seconds) / sample_rate
+    harmonic = (np.sin(2 * np.pi * 125 * timeline)
+                + 0.45 * np.sin(2 * np.pi * 250 * timeline)
+                + 0.15 * np.sin(2 * np.pi * 375 * timeline))
+    fade = np.minimum(1, np.minimum(timeline, seconds - timeline) * 12)
+    sf.write(str(path), (0.12 * harmonic * fade).astype(np.float32), sample_rate)
+
+
+def synthesize_directly(synthesizer, text, speaker, reference_wav=None):
+    """Call Coqui's synthesizer without high-level model-catalog properties.
+
+    Coqui TTS 0.22's TTS.tts() calls is_multi_lingual, which assumes a model
+    catalog and may fail on the original Ghag custom VITS configuration.
+    """
+    options = {"text": text, "language_name": "ps", "split_sentences": False}
+    if reference_wav is not None:
+        options["speaker_wav"] = str(reference_wav)
+    elif speaker:
+        options["speaker_name"] = speaker
+    else:
+        raise ValueError("A speaker name or reference signal is required")
+    return synthesizer.tts(**options)
 
 
 def run(args):
@@ -60,23 +119,96 @@ def run(args):
         # dependency conflicts are an experiment result, not a reason to guess.
         from TTS.api import TTS
         import soundfile as sf
+        if getattr(args, 'diagnostic_identity_cleaner', False):
+            # Diagnostic only: do NOT claim this matches the missing trained cleaner.
+            from TTS.tts.utils.text import cleaners
+            if hasattr(cleaners, 'pashto_grapheme_cleaners'):
+                raise RuntimeError('Original Pashto cleaner now exists; remove diagnostic override')
+            cleaners.pashto_grapheme_cleaners = lambda text: text
+            report['text_cleaner_override'] = 'IDENTITY_DIAGNOSTIC_UNVERIFIED'
+        # Upstream stores speaker embeddings as a PyTorch .pth file, while
+        # Coqui's SpeakerManager expects a supported embedding-file format.
+        # Convert ONLY inside the isolated runner; never unpickle in the browser.
+        import torch
+        import numpy as np
+        speaker_file = local / 'speakers.pth'
+        speaker_data = torch.load(str(speaker_file), map_location='cpu', weights_only=False)
+        speaker_metadata_kind = classify_speaker_metadata(speaker_data)
+        report["speaker_metadata_kind"] = speaker_metadata_kind
+        report["speaker_metadata_entries"] = len(speaker_data)
+        config_data = json.loads(config.read_text())
+        if speaker_metadata_kind == "clip_d_vectors":
+            def json_safe(value):
+                if isinstance(value, dict):
+                    return {str(k): json_safe(v) for k, v in value.items()}
+                if isinstance(value, (list, tuple)):
+                    return [json_safe(v) for v in value]
+                if isinstance(value, np.ndarray):
+                    return value.tolist()
+                if isinstance(value, torch.Tensor):
+                    return value.detach().cpu().tolist()
+                if isinstance(value, (str, int, float, bool)) or value is None:
+                    return value
+                raise TypeError("Unsupported speaker metadata type: " + type(value).__name__)
+            speaker_json = local / 'speakers-converted.json'
+            speaker_json.write_text(json.dumps(json_safe(speaker_data)), encoding='utf-8')
+            config_data = configure_speaker_embedding_paths(config_data, speaker_json)
+            report["speaker_embedding_conversion"] = {"source": "speakers.pth", "format": "json",
+                                                       "entries": len(speaker_data)}
+            report["speaker_embedding_paths"] = config_data["model_args"]["d_vector_file"]
+            reference_wav = None
+        else:
+            # A speaker-ID table cannot be loaded as precomputed d-vectors.
+            # The original model expects 512-dimensional external conditioning.
+            if not args.diagnostic_synthetic_reference:
+                raise RuntimeError("Published speakers.pth maps speaker names to integers, not d-vectors. "
+                                   "Pass --diagnostic-synthetic-reference ONLY for a non-speech model-loading "
+                                   "probe; a real voice requires a licensed reference recording.")
+            model_args = config_data.get("model_args")
+            if not isinstance(model_args, dict):
+                raise ValueError("Ghag config has no model_args object")
+            config_data["d_vector_file"] = None
+            model_args["d_vector_file"] = None
+            model_args["speaker_encoder_model_path"] = str(local / "model_se.pth")
+            model_args["speaker_encoder_config_path"] = str(local / "config_se.json")
+            reference_wav = output / "diagnostic-reference.wav"
+            make_diagnostic_reference(reference_wav)
+            report["speaker_conditioning"] = "SYNTHETIC_NON_SPEECH_PROBE_UNVERIFIED"
+        converted_config = local / 'config-converted.json'
+        converted_config.write_text(json.dumps(config_data), encoding='utf-8')
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
-                  config_path=str(config), progress_bar=False, gpu=False)
+                  config_path=str(converted_config), progress_bar=False, gpu=False)
         report["load_seconds"] = round(time.monotonic() - t0, 2)
-        speaker = args.speaker
-        if not speaker:
-            raise RuntimeError("Specify --speaker from the model's published speaker metadata; do not invent a speaker ID")
+        report["peak_rss_kib_after_load"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        report["source_text"] = TEXT
+        report["source_text_sha256"] = hashlib.sha256(TEXT.encode("utf-8")).hexdigest()
+        if reference_wav is not None:
+            report["diagnostic_reference_sha256"] = sha256(reference_wav)
+        if reference_wav is None and not args.speaker:
+            raise RuntimeError("Specify --speaker from actual published d-vector metadata")
         t0 = time.monotonic()
-        wav = tts.tts(text=TEXT, speaker=speaker, language="ps")
+        wav = synthesize_directly(tts.synthesizer, TEXT, args.speaker, reference_wav)
         report["inference_seconds"] = round(time.monotonic() - t0, 2)
         import numpy as np
         audio = np.asarray(wav, dtype=np.float32)
         if audio.size == 0 or not np.isfinite(audio).all() or float(np.max(np.abs(audio))) < 0.0001:
             raise RuntimeError("Generated audio is silent or invalid")
         sample_rate = int(tts.synthesizer.output_sample_rate)
-        sf.write(str(output / "ghag-baseline.wav"), audio, sample_rate)
-        report.update(inference_verified=True, samples=int(audio.size), sample_rate=sample_rate,
+        peak = float(np.max(np.abs(audio)))
+        rms = float(np.sqrt(np.mean(np.square(audio, dtype=np.float64))))
+        report["waveform"] = {"peak": round(peak, 6), "rms": round(rms, 6),
+                              "clipped_fraction": round(float(np.mean(np.abs(audio) >= 0.999)), 6)}
+        report["peak_rss_kib_after_inference"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        report["realtime_factor"] = round(report["inference_seconds"] / (audio.size / sample_rate), 3)
+        waveform_path = output / "ghag-baseline.wav"
+        sf.write(str(waveform_path), audio, sample_rate)
+        report["output_wav_sha256"] = sha256(waveform_path)
+        report.update(inference_verified=(reference_wav is None and
+                                          not args.diagnostic_identity_cleaner),
+                      diagnostic_waveform_generated=(reference_wav is not None or
+                                                     args.diagnostic_identity_cleaner),
+                      samples=int(audio.size), sample_rate=sample_rate,
                       duration_seconds=round(audio.size / sample_rate, 3))
         if args.stage == "infer":
             return report
@@ -84,7 +216,8 @@ def run(args):
         # durations and waveform decoding. No unvalidated dummy ONNX is emitted.
         raise NotImplementedError("Full conditional YourTTS ONNX export is not established. Inspect model graph, text frontend, speaker embeddings and dynamic axes before implementing an export adapter.")
     except Exception as error:
-        report["errors"].append({"type": type(error).__name__, "message": str(error)})
+        report["errors"].append({"type": type(error).__name__, "message": str(error),
+                                 "traceback": traceback.format_exc(limit=12)})
     finally:
         (output / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     return report
@@ -97,6 +230,8 @@ def main():
     parser.add_argument("--output", default="experiment-results/ghag")
     parser.add_argument("--accept-download", action="store_true")
     parser.add_argument("--speaker", help="Published speaker name or identifier")
+    parser.add_argument("--diagnostic-identity-cleaner", action="store_true", help="UNVERIFIED identity cleaner solely to diagnose subsequent loading blockers")
+    parser.add_argument("--diagnostic-synthetic-reference", action="store_true", help="UNVERIFIED synthesized tone used to probe speaker encoder without speech or private recordings")
     args = parser.parse_args()
     result = run(args)
     print(json.dumps(result, indent=2, ensure_ascii=False))
