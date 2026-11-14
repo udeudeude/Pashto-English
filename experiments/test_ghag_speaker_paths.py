@@ -68,5 +68,33 @@ class SpeakerPathsTests(unittest.TestCase):
             self.assertGreater(max(samples), 0.01)
 
 
+    def test_direct_synthesis_uses_custom_model_synthesizer_and_language(self):
+        class FakeSynthesizer:
+            def __init__(self):
+                self.calls = []
+            def tts(self, **kwargs):
+                self.calls.append(kwargs)
+                return [0.1, 0.2]
+        fake = FakeSynthesizer()
+        self.assertEqual(module.synthesize_directly(fake, "سلام", "published_speaker"),
+                         [0.1, 0.2])
+        self.assertEqual(fake.calls, [{
+            "text": "سلام", "language_name": "ps",
+            "split_sentences": False, "speaker_name": "published_speaker"}])
+        fake.calls.clear()
+        self.assertEqual(module.synthesize_directly(
+            fake, "سلام", "unused", Path("/tmp/diagnostic.wav")), [0.1, 0.2])
+        self.assertEqual(fake.calls, [{
+            "text": "سلام", "language_name": "ps",
+            "split_sentences": False, "speaker_wav": "/tmp/diagnostic.wav"}])
+
+    def test_direct_synthesis_requires_speaker_conditioning(self):
+        class FakeSynthesizer:
+            def tts(self, **kwargs):
+                raise AssertionError("Should not call synthesizer without a speaker")
+        with self.assertRaisesRegex(ValueError, "speaker"):
+            module.synthesize_directly(FakeSynthesizer(), "سلام", None)
+
+
 if __name__ == "__main__":
     unittest.main()
