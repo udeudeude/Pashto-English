@@ -53,6 +53,11 @@ class ReferenceTests(unittest.TestCase):
     def test_audio_url_accepts_only_dataset_viewer_asset(self):
         self.assertEqual(reference_audio_url({"audio": [{"src": self.audio_url}]}),
                          self.audio_url)
+        # Live dataset viewer may return a revision-scoped, signed cache URL.
+        cached = ("https://datasets-server.huggingface.co/cached-assets/google/fleurs/"
+                  "--/revision/--/ps_af/validation/0/audio/audio.wav"
+                  "?Expires=9999999999&Signature=opaque")
+        self.assertEqual(reference_audio_url({"audio": [{"src": cached}]}), cached)
         for url in ("file:///tmp/clip.wav", "http://datasets-server.huggingface.co/assets/x",
                     "https://evil.example/assets/x", "https://datasets-server.huggingface.co/rows"):
             with self.subTest(url=url), self.assertRaises(ValueError):
