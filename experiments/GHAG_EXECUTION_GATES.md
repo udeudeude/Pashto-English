@@ -23,3 +23,7 @@ This is an evidence-based status register, not a claim that a neural voice is av
 ## Latest observed failure (2026-11-13)
 
 The CPU workflow run 43510637777 downloaded the pinned checkpoint and reported `ValueError: Unsupported file type` after the explicitly unverified identity-cleaner override. It did not produce audio. A new run (43526987647) captures a Python traceback to locate the rejecting component. Do not interpret the identity override as a production Pashto normalizer.
+
+## Speaker file loader diagnosis (2026-11-13, later run)
+
+Run [43537980623](https://github.com/udeudeude/Pashto-English/actions/runs/43537980623) still failed in `SpeakerManager.read_embeddings_from_file -> load_file` with `ValueError: Unsupported file type`. The converted JSON configuration did not prevent the unsupported load. Commit `77193be` instruments the actual path requested and, in this isolated diagnostic only, returns the already-decoded embeddings when the original `speakers.pth` is requested. The experiment still uses an unverified identity text cleaner. This is not production code or validated speech. A fresh CPU run is pending.
