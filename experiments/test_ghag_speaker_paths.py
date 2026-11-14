@@ -43,6 +43,30 @@ class SpeakerPathsTests(unittest.TestCase):
         self.assertEqual(updated["model_args"]["num_speakers"], 11)
         self.assertEqual(updated["language_ids_file"], "language_ids.json")
 
+    def test_integer_speaker_ids_are_not_mistaken_for_d_vectors(self):
+        ids = {"speaker_01": 0, "speaker_02": 1}
+        self.assertEqual(module.classify_speaker_metadata(ids), "speaker_id_map")
+
+    def test_real_clip_embedding_metadata_is_recognized(self):
+        samples = {"clip_1.wav": {"name": "speaker_01", "embedding": [0.1, 0.2]}}
+        self.assertEqual(module.classify_speaker_metadata(samples), "clip_d_vectors")
+
+    def test_unknown_speaker_metadata_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Unrecognized"):
+            module.classify_speaker_metadata({"speaker_01": {"id": 0}})
+        with self.assertRaisesRegex(ValueError, "nonempty"):
+            module.classify_speaker_metadata({})
+
+    def test_diagnostic_signal_is_nonempty_and_never_a_published_voice(self):
+        import soundfile as sf
+        with tempfile.TemporaryDirectory() as directory:
+            wav = Path(directory) / "synthetic.wav"
+            module.make_diagnostic_reference(wav)
+            samples, rate = sf.read(str(wav))
+            self.assertEqual(rate, 16000)
+            self.assertEqual(len(samples), 64000)
+            self.assertGreater(max(samples), 0.01)
+
 
 if __name__ == "__main__":
     unittest.main()
