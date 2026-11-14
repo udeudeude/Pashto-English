@@ -67,9 +67,39 @@ def run(args):
                 raise RuntimeError('Original Pashto cleaner now exists; remove diagnostic override')
             cleaners.pashto_grapheme_cleaners = lambda text: text
             report['text_cleaner_override'] = 'IDENTITY_DIAGNOSTIC_UNVERIFIED'
+        # Upstream stores speaker embeddings as a PyTorch .pth file, while
+        # Coqui's SpeakerManager expects a supported embedding-file format.
+        # Convert ONLY inside the isolated runner; never unpickle in the browser.
+        import torch
+        import numpy as np
+        speaker_file = local / 'speakers.pth'
+        embeddings = torch.load(str(speaker_file), map_location='cpu', weights_only=False)
+        def json_safe(value):
+            if isinstance(value, dict):
+                return {str(k): json_safe(v) for k, v in value.items()}
+            if isinstance(value, (list, tuple)):
+                return [json_safe(v) for v in value]
+            if isinstance(value, np.ndarray):
+                return value.tolist()
+            if isinstance(value, torch.Tensor):
+                return value.detach().cpu().tolist()
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                return value
+            raise TypeError('Unsupported embedding metadata type: ' + type(value).__name__)
+        speaker_json = local / 'speakers-converted.json'
+        speaker_json.write_text(json.dumps(json_safe(embeddings)), encoding='utf-8')
+        config_data = json.loads(config.read_text())
+        config_data['d_vector_file'] = str(speaker_json)
+        config_data['speakers_file'] = str(speaker_json)
+        if isinstance(config_data.get('model_args'), dict):
+            config_data['model_args']['d_vector_file'] = str(speaker_json)
+            config_data['model_args']['speakers_file'] = str(speaker_json)
+        converted_config = local / 'config-converted.json'
+        converted_config.write_text(json.dumps(config_data), encoding='utf-8')
+        report['speaker_embedding_conversion'] = {'source': 'speakers.pth', 'format': 'json', 'entries': len(embeddings)}
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
-                  config_path=str(config), progress_bar=False, gpu=False)
+                  config_path=str(converted_config), progress_bar=False, gpu=False)
         report["load_seconds"] = round(time.monotonic() - t0, 2)
         report["peak_rss_kib_after_load"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         speaker = args.speaker
