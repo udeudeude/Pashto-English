@@ -54,7 +54,8 @@ def reference_audio_url(row):
     link = clip["src"]
     parsed = urlsplit(link)
     if (parsed.scheme != "https" or parsed.hostname != "datasets-server.huggingface.co"
-            or not parsed.path.startswith("/assets/") or parsed.username or parsed.password):
+            or not parsed.path.startswith(("/assets/", "/cached-assets/"))
+            or parsed.username or parsed.password):
         raise ValueError("Unexpected FLEURS audio source URL")
     return link
 
