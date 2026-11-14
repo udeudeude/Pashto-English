@@ -41,6 +41,33 @@ def configure_speaker_embedding_paths(config_data, speaker_json):
     return config_data
 
 
+def classify_speaker_metadata(payload):
+    """Distinguish Coqui clip d-vectors from integer speaker ID mappings."""
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("Speaker metadata is not a nonempty dictionary")
+    values = list(payload.values())
+    if all(type(value) is int for value in values):
+        return "speaker_id_map"
+    if all(isinstance(value, dict) and isinstance(value.get("name"), str)
+           and isinstance(value.get("embedding"), (list, tuple))
+           for value in values):
+        return "clip_d_vectors"
+    raise ValueError("Unrecognized speaker metadata schema; not assuming d-vectors")
+
+
+def make_diagnostic_reference(path, sample_rate=16000):
+    """Generate a deterministic *non-speech* signal for loader diagnostics only."""
+    import numpy as np
+    import soundfile as sf
+    seconds = 4
+    timeline = np.arange(sample_rate * seconds) / sample_rate
+    harmonic = (np.sin(2 * np.pi * 125 * timeline)
+                + 0.45 * np.sin(2 * np.pi * 250 * timeline)
+                + 0.15 * np.sin(2 * np.pi * 375 * timeline))
+    fade = np.minimum(1, np.minimum(timeline, seconds - timeline) * 12)
+    sf.write(str(path), (0.12 * harmonic * fade).astype(np.float32), sample_rate)
+
+
 def run(args):
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
@@ -89,37 +116,61 @@ def run(args):
         import torch
         import numpy as np
         speaker_file = local / 'speakers.pth'
-        embeddings = torch.load(str(speaker_file), map_location='cpu', weights_only=False)
-        def json_safe(value):
-            if isinstance(value, dict):
-                return {str(k): json_safe(v) for k, v in value.items()}
-            if isinstance(value, (list, tuple)):
-                return [json_safe(v) for v in value]
-            if isinstance(value, np.ndarray):
-                return value.tolist()
-            if isinstance(value, torch.Tensor):
-                return value.detach().cpu().tolist()
-            if isinstance(value, (str, int, float, bool)) or value is None:
-                return value
-            raise TypeError('Unsupported embedding metadata type: ' + type(value).__name__)
-        speaker_json = local / 'speakers-converted.json'
-        speaker_json.write_text(json.dumps(json_safe(embeddings)), encoding='utf-8')
+        speaker_data = torch.load(str(speaker_file), map_location='cpu', weights_only=False)
+        speaker_metadata_kind = classify_speaker_metadata(speaker_data)
+        report["speaker_metadata_kind"] = speaker_metadata_kind
+        report["speaker_metadata_entries"] = len(speaker_data)
         config_data = json.loads(config.read_text())
-        config_data = configure_speaker_embedding_paths(config_data, speaker_json)
+        if speaker_metadata_kind == "clip_d_vectors":
+            def json_safe(value):
+                if isinstance(value, dict):
+                    return {str(k): json_safe(v) for k, v in value.items()}
+                if isinstance(value, (list, tuple)):
+                    return [json_safe(v) for v in value]
+                if isinstance(value, np.ndarray):
+                    return value.tolist()
+                if isinstance(value, torch.Tensor):
+                    return value.detach().cpu().tolist()
+                if isinstance(value, (str, int, float, bool)) or value is None:
+                    return value
+                raise TypeError("Unsupported speaker metadata type: " + type(value).__name__)
+            speaker_json = local / 'speakers-converted.json'
+            speaker_json.write_text(json.dumps(json_safe(speaker_data)), encoding='utf-8')
+            config_data = configure_speaker_embedding_paths(config_data, speaker_json)
+            report["speaker_embedding_conversion"] = {"source": "speakers.pth", "format": "json",
+                                                       "entries": len(speaker_data)}
+            report["speaker_embedding_paths"] = config_data["model_args"]["d_vector_file"]
+            reference_wav = None
+        else:
+            # A speaker-ID table cannot be loaded as precomputed d-vectors.
+            # The original model expects 512-dimensional external conditioning.
+            if not args.diagnostic_synthetic_reference:
+                raise RuntimeError("Published speakers.pth maps speaker names to integers, not d-vectors. "
+                                   "Pass --diagnostic-synthetic-reference ONLY for a non-speech model-loading "
+                                   "probe; a real voice requires a licensed reference recording.")
+            model_args = config_data.get("model_args")
+            if not isinstance(model_args, dict):
+                raise ValueError("Ghag config has no model_args object")
+            config_data["d_vector_file"] = None
+            model_args["d_vector_file"] = None
+            model_args["speaker_encoder_model_path"] = str(local / "model_se.pth")
+            model_args["speaker_encoder_config_path"] = str(local / "config_se.json")
+            reference_wav = output / "diagnostic-reference.wav"
+            make_diagnostic_reference(reference_wav)
+            report["speaker_conditioning"] = "SYNTHETIC_NON_SPEECH_PROBE_UNVERIFIED"
         converted_config = local / 'config-converted.json'
         converted_config.write_text(json.dumps(config_data), encoding='utf-8')
-        report['speaker_embedding_conversion'] = {'source': 'speakers.pth', 'format': 'json', 'entries': len(embeddings)}
-        report['speaker_embedding_paths'] = config_data['model_args']['d_vector_file']
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
                   config_path=str(converted_config), progress_bar=False, gpu=False)
         report["load_seconds"] = round(time.monotonic() - t0, 2)
         report["peak_rss_kib_after_load"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        speaker = args.speaker
-        if not speaker:
-            raise RuntimeError("Specify --speaker from the model's published speaker metadata; do not invent a speaker ID")
+        if reference_wav is None and not args.speaker:
+            raise RuntimeError("Specify --speaker from actual published d-vector metadata")
         t0 = time.monotonic()
-        wav = tts.tts(text=TEXT, speaker=speaker, language="ps")
+        wav = (tts.tts(text=TEXT, speaker_wav=str(reference_wav), language="ps")
+               if reference_wav is not None
+               else tts.tts(text=TEXT, speaker=args.speaker, language="ps"))
         report["inference_seconds"] = round(time.monotonic() - t0, 2)
         import numpy as np
         audio = np.asarray(wav, dtype=np.float32)
@@ -133,7 +184,9 @@ def run(args):
         report["peak_rss_kib_after_inference"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         report["realtime_factor"] = round(report["inference_seconds"] / (audio.size / sample_rate), 3)
         sf.write(str(output / "ghag-baseline.wav"), audio, sample_rate)
-        report.update(inference_verified=True, samples=int(audio.size), sample_rate=sample_rate,
+        report.update(inference_verified=reference_wav is None,
+                      diagnostic_waveform_generated=reference_wav is not None,
+                      samples=int(audio.size), sample_rate=sample_rate,
                       duration_seconds=round(audio.size / sample_rate, 3))
         if args.stage == "infer":
             return report
@@ -156,6 +209,7 @@ def main():
     parser.add_argument("--accept-download", action="store_true")
     parser.add_argument("--speaker", help="Published speaker name or identifier")
     parser.add_argument("--diagnostic-identity-cleaner", action="store_true", help="UNVERIFIED identity cleaner solely to diagnose subsequent loading blockers")
+    parser.add_argument("--diagnostic-synthetic-reference", action="store_true", help="UNVERIFIED synthesized tone used to probe speaker encoder without speech or private recordings")
     args = parser.parse_args()
     result = run(args)
     print(json.dumps(result, indent=2, ensure_ascii=False))
