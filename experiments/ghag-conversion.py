@@ -181,6 +181,10 @@ def run(args):
                   config_path=str(converted_config), progress_bar=False, gpu=False)
         report["load_seconds"] = round(time.monotonic() - t0, 2)
         report["peak_rss_kib_after_load"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        report["source_text"] = TEXT
+        report["source_text_sha256"] = hashlib.sha256(TEXT.encode("utf-8")).hexdigest()
+        if reference_wav is not None:
+            report["diagnostic_reference_sha256"] = sha256(reference_wav)
         if reference_wav is None and not args.speaker:
             raise RuntimeError("Specify --speaker from actual published d-vector metadata")
         t0 = time.monotonic()
@@ -197,9 +201,13 @@ def run(args):
                               "clipped_fraction": round(float(np.mean(np.abs(audio) >= 0.999)), 6)}
         report["peak_rss_kib_after_inference"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         report["realtime_factor"] = round(report["inference_seconds"] / (audio.size / sample_rate), 3)
-        sf.write(str(output / "ghag-baseline.wav"), audio, sample_rate)
-        report.update(inference_verified=reference_wav is None,
-                      diagnostic_waveform_generated=reference_wav is not None,
+        waveform_path = output / "ghag-baseline.wav"
+        sf.write(str(waveform_path), audio, sample_rate)
+        report["output_wav_sha256"] = sha256(waveform_path)
+        report.update(inference_verified=(reference_wav is None and
+                                          not args.diagnostic_identity_cleaner),
+                      diagnostic_waveform_generated=(reference_wav is not None or
+                                                     args.diagnostic_identity_cleaner),
                       samples=int(audio.size), sample_rate=sample_rate,
                       duration_seconds=round(audio.size / sample_rate, 3))
         if args.stage == "infer":
