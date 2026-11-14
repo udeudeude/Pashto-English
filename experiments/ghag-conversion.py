@@ -25,6 +25,22 @@ def sha256(path):
     return h.hexdigest()
 
 
+def configure_speaker_embedding_paths(config_data, speaker_json):
+    """Coqui VitsArgs/VitsConfig declare d_vector_file as List[str].
+
+    Passing a string makes Coqpit coerce it into individual characters,
+    then EmbeddingManager tries to open '/' as a file. Keep both config
+    levels aligned because VitsConfig.__post_init__ copies model_args.
+    """
+    model_args = config_data.get("model_args")
+    if not isinstance(model_args, dict):
+        raise ValueError("Ghag config is missing the VITS model_args object")
+    paths = [str(speaker_json)]
+    config_data["d_vector_file"] = paths
+    model_args["d_vector_file"] = paths
+    return config_data
+
+
 def run(args):
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
@@ -89,27 +105,11 @@ def run(args):
         speaker_json = local / 'speakers-converted.json'
         speaker_json.write_text(json.dumps(json_safe(embeddings)), encoding='utf-8')
         config_data = json.loads(config.read_text())
-        config_data['d_vector_file'] = str(speaker_json)
-        config_data['speakers_file'] = str(speaker_json)
-        if isinstance(config_data.get('model_args'), dict):
-            config_data['model_args']['d_vector_file'] = str(speaker_json)
-            config_data['model_args']['speakers_file'] = str(speaker_json)
+        config_data = configure_speaker_embedding_paths(config_data, speaker_json)
         converted_config = local / 'config-converted.json'
         converted_config.write_text(json.dumps(config_data), encoding='utf-8')
         report['speaker_embedding_conversion'] = {'source': 'speakers.pth', 'format': 'json', 'entries': len(embeddings)}
-        # Trace the actual file selected by Coqui; config overrides may be ignored.
-        from TTS.tts.utils import managers as speaker_managers
-        original_load_file = speaker_managers.load_file
-        def traced_load_file(path, *load_args, **load_kwargs):
-            report.setdefault('embedding_load_paths', []).append(str(path))
-            if str(path).endswith('.pth') and Path(path).resolve() == speaker_file.resolve():
-                return json_safe(embeddings)
-            return original_load_file(path, *load_args, **load_kwargs)
-        speaker_managers.load_file = traced_load_file
-        report['speaker_file_override'] = 'ISOLATED_DIAGNOSTIC_ONLY'
-        report['embedding_format'] = {'source_suffix': speaker_file.suffix,
-                                      'converted_suffix': speaker_json.suffix,
-                                      'source_entries': len(embeddings)}
+        report['speaker_embedding_paths'] = config_data['model_args']['d_vector_file']
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
                   config_path=str(converted_config), progress_bar=False, gpu=False)
