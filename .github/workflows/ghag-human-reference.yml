@@ -1,0 +1,82 @@
+name: Ghag licensed Pashto reference inference
+on:
+  push:
+    branches: [experiment/ghag-speaker-inference]
+    paths:
+      - '.github/workflows/ghag-human-reference.yml'
+      - 'experiments/ghag_public_reference.py'
+      - 'experiments/test_ghag_public_reference.py'
+      - 'experiments/ghag-conversion.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-public-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install minimal audio validation dependencies
+        run: python -m pip install 'numpy<2' 'soundfile==0.12.1' 'scipy<2'
+      - name: Test bounded retrieval and speaker-path contracts
+        run: |
+          python -m py_compile experiments/ghag_public_reference.py experiments/ghag-conversion.py
+          python -m unittest discover -s experiments -p 'test_ghag_public_reference.py' -v
+          python -m unittest discover -s experiments -p 'test_ghag_speaker_paths.py' -v
+      - name: Fetch ONE actual licensed public Pashto speech reference
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'experiments')
+          from ghag_public_reference import fetch_reference
+          result=fetch_reference(Path('experiment-results/ghag/preflight/fleurs-reference.wav'))
+          print(json.dumps(result, indent=2))
+          PY
+      - name: Discard downloaded speech after validation
+        if: always()
+        run: rm -f experiment-results/ghag/preflight/fleurs-reference.wav
+  synthesize:
+    needs: validate-public-reference
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install pinned original Ghag inference dependencies
+        run: python -m pip install --disable-pip-version-check 'huggingface_hub==0.26.5' 'TTS==0.22.0' 'soundfile==0.12.1' 'numpy<2'
+      - name: Repeat isolated offline regression suite
+        run: |
+          python -m unittest discover -s experiments -p 'test_ghag_public_reference.py' -v
+          python -m unittest discover -s experiments -p 'test_ghag_speaker_paths.py' -v
+      - name: Generate waveform with public human Pashto reference
+        run: |
+          mkdir -p experiment-results/ghag/human-reference
+          python experiments/ghag-conversion.py infer --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 --accept-download --diagnostic-identity-cleaner --public-fleurs-reference --output experiment-results/ghag/human-reference
+      - name: Record diagnostic report and dependency versions
+        if: always()
+        run: |
+          mkdir -p experiment-results/ghag/human-reference
+          python -m pip freeze > experiment-results/ghag/human-reference/pip-freeze.txt
+          if test -f experiment-results/ghag/human-reference/report.json; then cat experiment-results/ghag/human-reference/report.json; fi
+      - name: Upload reports ONLY, never model or speaker audio
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghag-public-speech-reference-diagnostics
+          path: |
+            experiment-results/ghag/human-reference/report.json
+            experiment-results/ghag/human-reference/pip-freeze.txt
+          if-no-files-found: warn
+      - name: Explicitly delete ephemeral audio and weights
+        if: always()
+        run: |
+          rm -f experiment-results/ghag/human-reference/fleurs-public-reference.wav
+          rm -f experiment-results/ghag/human-reference/ghag-baseline.wav
+          rm -rf experiment-results/ghag/human-reference/checkpoint
