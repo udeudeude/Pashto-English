@@ -107,6 +107,9 @@ def run(args):
             return original_load_file(path, *load_args, **load_kwargs)
         speaker_managers.load_file = traced_load_file
         report['speaker_file_override'] = 'ISOLATED_DIAGNOSTIC_ONLY'
+        report['embedding_format'] = {'source_suffix': speaker_file.suffix,
+                                      'converted_suffix': speaker_json.suffix,
+                                      'source_entries': len(embeddings)}
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
                   config_path=str(converted_config), progress_bar=False, gpu=False)
