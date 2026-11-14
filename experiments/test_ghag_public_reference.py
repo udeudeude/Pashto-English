@@ -68,6 +68,25 @@ class ReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "trusted"):
             bounded_response(self.audio_url, 100, bad_redirect)
 
+    def test_cold_dataset_timeout_retries_once_without_relaxing_guards(self):
+        calls = []
+        def slow_then_success(req, timeout):
+            calls.append(timeout)
+            if len(calls) == 1:
+                raise TimeoutError("cold metadata backend")
+            return FakeResponse(b"ok", req.full_url)
+        self.assertEqual(bounded_response(self.audio_url, 100, slow_then_success), b"ok")
+        self.assertEqual(calls, [75, 75])
+
+    def test_repeated_timeout_fails_closed(self):
+        calls = []
+        def always_timeout(req, timeout):
+            calls.append(timeout)
+            raise TimeoutError("metadata backend still unavailable")
+        with self.assertRaises(TimeoutError):
+            bounded_response(self.audio_url, 100, always_timeout)
+        self.assertEqual(len(calls), 2)
+
     def test_download_decodes_and_records_only_safe_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:
             file = Path(tmp) / "reference.wav"
