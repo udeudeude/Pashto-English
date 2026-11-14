@@ -97,6 +97,16 @@ def run(args):
         converted_config = local / 'config-converted.json'
         converted_config.write_text(json.dumps(config_data), encoding='utf-8')
         report['speaker_embedding_conversion'] = {'source': 'speakers.pth', 'format': 'json', 'entries': len(embeddings)}
+        # Trace the actual file selected by Coqui; config overrides may be ignored.
+        from TTS.tts.utils import managers as speaker_managers
+        original_load_file = speaker_managers.load_file
+        def traced_load_file(path, *load_args, **load_kwargs):
+            report.setdefault('embedding_load_paths', []).append(str(path))
+            if str(path).endswith('.pth') and Path(path).resolve() == speaker_file.resolve():
+                return json_safe(embeddings)
+            return original_load_file(path, *load_args, **load_kwargs)
+        speaker_managers.load_file = traced_load_file
+        report['speaker_file_override'] = 'ISOLATED_DIAGNOSTIC_ONLY'
         t0 = time.monotonic()
         tts = TTS(model_path=str(local / "best_model.pth"),
                   config_path=str(converted_config), progress_bar=False, gpu=False)
