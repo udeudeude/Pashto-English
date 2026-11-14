@@ -23,16 +23,23 @@ MAX_AUDIO_BYTES = 6_000_000
 
 def bounded_response(url, max_bytes, opener=urlopen):
     req = Request(url, headers={"User-Agent": "Pashto-English-Ghag-Research/1.0"})
-    with opener(req, timeout=30) as stream:
-        final_url = stream.geturl()
-        # Prevent model-controlled URL redirects to unrelated hosts.
-        parsed = urlsplit(final_url)
-        if parsed.scheme != "https" or parsed.hostname != "datasets-server.huggingface.co":
-            raise ValueError("Reference URL redirected away from trusted dataset viewer")
-        data = stream.read(max_bytes + 1)
-    if not data or len(data) > max_bytes:
-        raise ValueError("Reference response is empty or exceeds configured size limit")
-    return data
+    # HF's first cold FLEURS parquet row can take more than 30 seconds.
+    # Retry ONLY transport timeouts; never retry validation failures.
+    for attempt in range(2):
+        try:
+            with opener(req, timeout=75) as stream:
+                final_url = stream.geturl()
+                parsed = urlsplit(final_url)
+                if parsed.scheme != "https" or parsed.hostname != "datasets-server.huggingface.co":
+                    raise ValueError("Reference URL redirected away from trusted dataset viewer")
+                data = stream.read(max_bytes + 1)
+            if not data or len(data) > max_bytes:
+                raise ValueError("Reference response is empty or exceeds configured size limit")
+            return data
+        except (TimeoutError, ConnectionError):
+            if attempt:
+                raise
+    raise AssertionError("Unreachable reference acquisition state")
 
 
 def reference_audio_url(row):
