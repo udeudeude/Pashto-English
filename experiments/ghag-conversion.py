@@ -68,6 +68,22 @@ def make_diagnostic_reference(path, sample_rate=16000):
     sf.write(str(path), (0.12 * harmonic * fade).astype(np.float32), sample_rate)
 
 
+def synthesize_directly(synthesizer, text, speaker, reference_wav=None):
+    """Call Coqui's synthesizer without high-level model-catalog properties.
+
+    Coqui TTS 0.22's TTS.tts() calls is_multi_lingual, which assumes a model
+    catalog and may fail on the original Ghag custom VITS configuration.
+    """
+    options = {"text": text, "language_name": "ps", "split_sentences": False}
+    if reference_wav is not None:
+        options["speaker_wav"] = str(reference_wav)
+    elif speaker:
+        options["speaker_name"] = speaker
+    else:
+        raise ValueError("A speaker name or reference signal is required")
+    return synthesizer.tts(**options)
+
+
 def run(args):
     output = Path(args.output)
     output.mkdir(parents=True, exist_ok=True)
@@ -168,9 +184,7 @@ def run(args):
         if reference_wav is None and not args.speaker:
             raise RuntimeError("Specify --speaker from actual published d-vector metadata")
         t0 = time.monotonic()
-        wav = (tts.tts(text=TEXT, speaker_wav=str(reference_wav), language="ps")
-               if reference_wav is not None
-               else tts.tts(text=TEXT, speaker=args.speaker, language="ps"))
+        wav = synthesize_directly(tts.synthesizer, TEXT, args.speaker, reference_wav)
         report["inference_seconds"] = round(time.monotonic() - t0, 2)
         import numpy as np
         audio = np.asarray(wav, dtype=np.float32)
