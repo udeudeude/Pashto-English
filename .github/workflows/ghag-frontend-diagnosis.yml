@@ -6,6 +6,8 @@ on:
       - 'experiments/diagnose-ghag-frontend.py'
       - 'experiments/ghag_text_frontend.py'
       - 'experiments/test_ghag_text_frontend.py'
+      - 'experiments/ghag_corpus_audit.py'
+      - 'experiments/test_ghag_corpus_audit.py'
       - '.github/workflows/ghag-frontend-diagnosis.yml'
   workflow_dispatch:
 permissions:
@@ -21,14 +23,20 @@ jobs:
           python-version: '3.10'
       - name: Test Unicode normalization and non-destructive vocabulary audit
         run: python -m unittest discover -s experiments -p 'test_ghag_text_frontend.py' -v
+      - name: Test bounded public Pashto corpus audit and privacy invariants
+        run: python -m unittest discover -s experiments -p 'test_ghag_corpus_audit.py' -v
       - name: Install pinned metadata client only
         run: python -m pip install 'huggingface_hub==0.26.5'
       - name: Audit exact pinned model text frontend
         run: python experiments/diagnose-ghag-frontend.py
+      - name: Measure public Pashto transcript character coverage
+        run: python experiments/ghag_corpus_audit.py
       - name: Preserve metadata report, never weights or generated audio
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ghag-text-frontend
-          path: experiment-results/ghag/text-frontend.json
+          path: |
+            experiment-results/ghag/text-frontend.json
+            experiment-results/ghag/corpus-coverage.json
           if-no-files-found: warn
