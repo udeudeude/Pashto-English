@@ -3,7 +3,7 @@ import unittest
 
 from ghag_text_frontend import (
     audit_sample, conservative_preview, extract_test_texts,
-    published_character_inventory,
+    published_character_inventory, require_raw_grapheme_coverage,
 )
 
 
@@ -56,6 +56,27 @@ class GhagTextFrontendTests(unittest.TestCase):
             {"text": "not a Coqui sentence"}, "", [], ["پښتو"],
         ]}
         self.assertEqual(extract_test_texts(config), ["سلام!", "ښه راغلاست", "پښتو"])
+
+    def test_preflight_rejects_numbers_in_both_scripts(self):
+        for candidate in ("سلام 123", "سلام ۱۲۳"):
+            with self.subTest(candidate=candidate), self.assertRaisesRegex(
+                ValueError, "absent from the model inventory"
+            ):
+                require_raw_grapheme_coverage(candidate, self.inventory)
+
+    def test_preflight_rejects_latin_and_unknown_punctuation(self):
+        with self.assertRaisesRegex(ValueError, "U\\+0021"):
+            require_raw_grapheme_coverage("سلام!", self.inventory)
+        with self.assertRaisesRegex(ValueError, "U\\+0041"):
+            require_raw_grapheme_coverage("سلام A", self.inventory)
+
+    def test_preflight_never_silently_normalizes_source(self):
+        with self.assertRaisesRegex(ValueError, "unverified normalization"):
+            require_raw_grapheme_coverage("سلام\\u200f", self.inventory)
+
+    def test_preflight_accepts_unmodified_known_graphemes_only(self):
+        text = "سلام؟"
+        self.assertEqual(require_raw_grapheme_coverage(text, self.inventory), text)
 
 
 if __name__ == "__main__":
