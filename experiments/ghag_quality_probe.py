@@ -121,7 +121,15 @@ def recognize(model, audio_path):
     }
 
 
-def run(reference_wav, generated_wav, output, model_name=ASR_MODEL):
+def ephemeral_control_transcript(path):
+    """Read text captured in the same FLEURS request as the public audio."""
+    text = Path(path).read_text(encoding="utf-8").strip()
+    if not 1 <= len(text) <= 500:
+        raise ValueError("Missing or oversized ephemeral FLEURS calibration text")
+    return text
+
+
+def run(reference_wav, generated_wav, output, model_name=ASR_MODEL, control_transcript=None):
     # Validate configuration and files without importing heavyweight models.
     if model_name not in ("base", "small"):
         raise ValueError("Only a bounded multilingual recognition model is allowed")
@@ -140,7 +148,9 @@ def run(reference_wav, generated_wav, output, model_name=ASR_MODEL):
         "browser_verified": False,
         "audio_or_transcripts_published": False,
     }
-    reference_transcript = public_reference_transcript()
+    reference_transcript = (ephemeral_control_transcript(control_transcript)
+                            if control_transcript is not None
+                            else public_reference_transcript())
     loaded = time.monotonic()
     model = whisper.load_model(model_name, device="cpu")
     result["recognizer_load_seconds"] = round(time.monotonic() - loaded, 3)
@@ -179,11 +189,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--reference-wav", required=True)
     parser.add_argument("--generated-wav", required=True)
+    parser.add_argument("--control-transcript", type=Path,
+                        help="Ephemeral public FLEURS transcript captured with its WAV")
     parser.add_argument("--report", required=True)
     parser.add_argument("--model", choices=["base", "small"], default="base")
     args = parser.parse_args()
     try:
-        run(args.reference_wav, args.generated_wav, args.report, args.model)
+        run(args.reference_wav, args.generated_wav, args.report, args.model,
+            args.control_transcript)
     except Exception as error:
         # Report failure without emitting audio or any ASR text.
         output = Path(args.report)

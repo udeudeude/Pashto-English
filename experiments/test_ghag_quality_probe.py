@@ -124,6 +124,16 @@ class GhagQualityProbeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Both real-reference"):
                 probe.run(empty, empty, Path(temp) / "report.json")
 
+    def test_ephemeral_control_reuses_original_reference_request(self):
+        from ghag_quality_probe import ephemeral_control_transcript
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "reference-transcript.txt"
+            path.write_text("سلام، تاسو څنګه یاست؟\\n", encoding="utf-8")
+            self.assertEqual(ephemeral_control_transcript(path), "سلام، تاسو څنګه یاست؟")
+            path.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "ephemeral"):
+                ephemeral_control_transcript(path)
+
 
 if __name__ == "__main__":
     unittest.main()

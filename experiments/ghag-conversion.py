@@ -180,7 +180,9 @@ def run(args):
                 # A genuine reference does NOT resolve the missing training cleaner.
                 from ghag_public_reference import fetch_reference
                 reference_wav = output / "fleurs-public-reference.wav"
-                report["public_reference_provenance"] = fetch_reference(reference_wav)
+                report["public_reference_provenance"] = fetch_reference(
+                    reference_wav,
+                    transcript_path=output / "fleurs-public-reference-transcript.txt")
                 report["speaker_conditioning"] = "PUBLIC_FLEURS_HUMAN_SPEECH_UNVERIFIED"
             else:
                 reference_wav = output / "diagnostic-reference.wav"

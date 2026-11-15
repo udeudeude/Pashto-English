@@ -6,6 +6,8 @@ on:
       - '.github/workflows/ghag-quality-probe.yml'
       - 'experiments/ghag_quality_probe.py'
       - 'experiments/test_ghag_quality_probe.py'
+      - 'experiments/ghag-conversion.py'
+      - 'experiments/ghag_public_reference.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,6 +39,7 @@ jobs:
         run: |
           python experiments/ghag_quality_probe.py \
             --reference-wav experiment-results/ghag/quality/fleurs-public-reference.wav \
+            --control-transcript experiment-results/ghag/quality/fleurs-public-reference-transcript.txt \
             --generated-wav experiment-results/ghag/quality/ghag-baseline.wav \
             --model base --report experiment-results/ghag/quality/roundtrip-report.json
       - name: Record pinned dependency versions
@@ -58,5 +61,6 @@ jobs:
         if: always()
         run: |
           rm -f experiment-results/ghag/quality/fleurs-public-reference.wav
+          rm -f experiment-results/ghag/quality/fleurs-public-reference-transcript.txt
           rm -f experiment-results/ghag/quality/ghag-baseline.wav
           rm -rf experiment-results/ghag/quality/checkpoint
