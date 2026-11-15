@@ -6,6 +6,8 @@ import tempfile
 from pathlib import Path
 import unittest
 from urllib.parse import parse_qs, urlsplit
+from urllib.error import HTTPError
+from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
@@ -62,6 +64,55 @@ class ReferenceTests(unittest.TestCase):
                     "https://evil.example/assets/x", "https://datasets-server.huggingface.co/rows"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 reference_audio_url({"audio": [{"src": url}]})
+
+    def test_temporary_503_retry_then_success_without_relaxing_bounds(self):
+        calls = []
+        delays = []
+        def flaky(req, timeout):
+            calls.append((req.full_url, timeout))
+            if len(calls) == 1:
+                raise HTTPError(req.full_url, 503, "temporarily unavailable", {}, None)
+            return FakeResponse(b"ok", req.full_url)
+        with patch("ghag_public_reference.time.sleep", side_effect=delays.append):
+            self.assertEqual(bounded_response(self.audio_url, 100, flaky), b"ok")
+        self.assertEqual(delays, [1])
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(timeout == 75 for _, timeout in calls))
+
+    def test_persistent_503_fails_closed_and_403_does_not_retry(self):
+        for code, expected_count, expected_delays in ((503, 3, [1, 3]), (403, 1, [])):
+            calls, delays = [], []
+            def failed(req, timeout):
+                calls.append(timeout)
+                raise HTTPError(req.full_url, code, "unavailable", {}, None)
+            with self.subTest(code=code), patch(
+                "ghag_public_reference.time.sleep", side_effect=delays.append
+            ), self.assertRaises(HTTPError):
+                bounded_response(self.audio_url, 100, failed)
+            self.assertEqual(len(calls), expected_count)
+            self.assertEqual(delays, expected_delays)
+
+    def test_optional_public_control_text_remains_ephemeral(self):
+        with tempfile.TemporaryDirectory() as directory:
+            transcript = Path(directory) / "transcript.txt"
+            metadata = fetch_reference(
+                Path(directory) / "reference.wav",
+                transcript_path=transcript, opener=self.fake_opener)
+            self.assertEqual(transcript.read_text(encoding="utf-8"),
+                             "Do not publish sample text or identity\n")
+            self.assertNotIn("Do not publish sample text", str(metadata))
+            self.assertNotIn("transcript", str(metadata))
+
+    def test_optional_public_control_rejects_missing_transcript(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = self.row["rows"][0]["row"].pop("transcription")
+            try:
+                with self.assertRaisesRegex(ValueError, "bounded transcript"):
+                    fetch_reference(Path(directory) / "clip.wav",
+                                    transcript_path=Path(directory) / "text.txt",
+                                    opener=self.fake_opener)
+            finally:
+                self.row["rows"][0]["row"]["transcription"] = original
 
     def test_size_limit_and_redirect_blocked(self):
         def too_big(req, timeout):
