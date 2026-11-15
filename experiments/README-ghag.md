@@ -26,3 +26,14 @@ Inspect the original YourTTS checkpoint and model graph, the text frontend, the 
 ## Limitations
 
 The original checkpoint produced repeatable **diagnostic neural waveforms** but not validated natural or intelligible Pashto speech. There is no verified trained-cleaner implementation in the pinned published Python source; the minimal Unicode character-coverage audit must **not** be installed as a drop-in trained cleaner. Human-reference conditioning was exercised by two isolated CPU runs but voice quality and original speaker identity are unverified. Pronunciation, ONNX export, and browser execution remain unverified. The model's compatibility with older iPhones remains unknown. The experiment records errors rather than claiming unsupported success.
+
+
+## Independent recognition control (experimental, not a quality certification)
+
+The optional [Ghag independent speech-recognition workflow](../.github/workflows/ghag-quality-probe.yml) first generates an ephemeral waveform from the pinned Ghag model using one licensed public Pashto FLEURS recording as speaker reference. It then installs the pinned multilingual openai-whisper==20250625 **base** recognizer and separately recognizes (1) the actual FLEURS recording, scored against its published transcript, and (2) the generated Ghag recording, scored against the exact requested sentence. Source and recognition text remain transient and are deliberately omitted from JSON reports. A failed real-speech calibration means the Ghag recognition score is **inconclusive**, even if numerically good.
+
+Fast offline verification, requiring no model weights or Whisper installation:
+
+    python -m unittest discover -s experiments -p 'test_ghag_quality_probe.py' -v
+
+For isolated full research runs, execute the GitHub workflow. It obtains and removes the permitted public audio locally; neither source speech, generated speech, speaker embeddings nor model weights belong in commits or workflow artifacts. A successful run is only **automatic recognition evidence**, not a validation of human intelligibility, pronunciation, trained text-cleaner compatibility or mobile feasibility. Preserve eSpeak as the deployed web voice.
