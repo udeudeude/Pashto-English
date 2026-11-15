@@ -37,6 +37,8 @@ jobs:
         run: node --test tests/translation-audit.test.mjs
       - name: Test neural voice fallback and Pashto normalization
         run: node --test tests/voice-fallback.test.mjs
+      - name: Test accessible Pashto voice selection and safe native fallback
+        run: node --test tests/pashto-voice-choice.test.mjs
       - name: Test Ghag artifact probe offline
         run: python3 -m unittest discover -s tests -p test_ghag_probe.py
       - name: Check Ghag conversion experiment and reports
