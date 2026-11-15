@@ -129,13 +129,17 @@ def ephemeral_control_transcript(path):
     return text
 
 
-def run(reference_wav, generated_wav, output, model_name=ASR_MODEL, control_transcript=None):
+def run(reference_wav, generated_wav, output, model_name=ASR_MODEL, control_transcript=None, espeak_wav=None):
     # Validate configuration and files without importing heavyweight models.
     if model_name not in ("base", "small"):
         raise ValueError("Only a bounded multilingual recognition model is allowed")
     paths = (Path(reference_wav), Path(generated_wav))
     if any(not p.is_file() or p.stat().st_size < 64 for p in paths):
         raise ValueError("Both real-reference and generated waveforms are required")
+    if espeak_wav is not None:
+        baseline = Path(espeak_wav)
+        if not baseline.is_file() or baseline.stat().st_size < 64:
+            raise ValueError("Real eSpeak output is required for the optional comparison")
     import whisper
     import torch
     result = {
@@ -165,6 +169,13 @@ def run(reference_wav, generated_wav, output, model_name=ASR_MODEL, control_tran
         **compare_text(EXPECTED_INPUT, synthetic_text), **synthetic_metrics,
         "source": "Ghag_original_weights_human_reference_UNVERIFIED_cleaner",
     }
+    if espeak_wav is not None:
+        espeak_text, espeak_metrics = recognize(model, Path(espeak_wav))
+        result["espeak_generated"] = {
+            **compare_text(EXPECTED_INPUT, espeak_text), **espeak_metrics,
+            "source": "BUNDLED_ESPEAK_NG_PASHTO_VOICE",
+            "pronunciation_verified": False,
+        }
     # This threshold merely screens obviously weak recognition controls; it
     # never converts an automated score into verified pronunciation.
     result["asr_control_usable_for_exploration"] = (
@@ -173,10 +184,11 @@ def run(reference_wav, generated_wav, output, model_name=ASR_MODEL, control_tran
     )
     result["interpretation"] = (
         "Calibration control passed a predeclared exploratory threshold; "
-        "generated-speech recognition remains an imperfect proxy."
+        "Ghag and eSpeak recognition scores (if present) remain imperfect "
+        "proxies, NOT human intelligibility or a claim of voice superiority."
         if result["asr_control_usable_for_exploration"] else
-        "Reference ASR calibration failed; do NOT treat the generated-speech "
-        "score as evidence of Ghag pronunciation quality."
+        "Reference ASR calibration failed; do NOT interpret any generated "
+        "speech scores (Ghag or eSpeak) as evidence of pronunciation quality."
     )
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -189,6 +201,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--reference-wav", required=True)
     parser.add_argument("--generated-wav", required=True)
+    parser.add_argument("--espeak-wav", type=Path,
+                        help="Optional ephemeral bundled eSpeak Pashto baseline")
     parser.add_argument("--control-transcript", type=Path,
                         help="Ephemeral public FLEURS transcript captured with its WAV")
     parser.add_argument("--report", required=True)
@@ -196,7 +210,7 @@ def main():
     args = parser.parse_args()
     try:
         run(args.reference_wav, args.generated_wav, args.report, args.model,
-            args.control_transcript)
+            args.control_transcript, args.espeak_wav)
     except Exception as error:
         # Report failure without emitting audio or any ASR text.
         output = Path(args.report)

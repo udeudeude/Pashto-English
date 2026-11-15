@@ -24,6 +24,42 @@ jobs:
         run: |
           python -m py_compile experiments/ghag_quality_probe.py experiments/test_ghag_quality_probe.py
           python -m unittest discover -s experiments -p 'test_ghag_quality_probe.py' -v
+      - name: Install lightweight, pinned reference decoding dependencies
+        run: python -m pip install --disable-pip-version-check 'numpy<2' 'scipy<2' 'soundfile==0.12.1'
+      - name: Fetch once and validate licensed human Pashto reference
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'experiments')
+          from ghag_public_reference import fetch_reference
+          base=Path('experiment-results/ghag/quality')
+          base.mkdir(parents=True,exist_ok=True)
+          result=fetch_reference(base/'fleurs-public-reference.wav',
+                                 transcript_path=base/'fleurs-public-reference-transcript.txt')
+          (base/'fleurs-public-reference-provenance.json').write_text(
+              json.dumps(result,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+          print('Validated FLEURS source, license, row 0, sample rate and audio checksum')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Produce actual bundled eSpeak Pashto comparison, kept ephemeral
+        run: |
+          node --input-type=module - <<'JS'
+          import {writeFileSync} from 'node:fs';
+          import {createEspeak,encodeWav} from './vendor/pashto-voice/dist/node.js';
+          const engine=await createEspeak({languages:['ps']});
+          if(!engine.listVoices().some(v=>v.languages?.some(l=>l.name==='ps'||l.name?.startsWith('ps-'))))
+            throw Error('Bundled engine did not expose a genuine Pashto voice');
+          engine.setVoice('ps');
+          const {samples,sampleRate}=engine.synthesize('سلام، تاسو څنګه یاست؟');
+          if(!samples?.length||!Number.isFinite(sampleRate))throw Error('Empty Pashto baseline');
+          writeFileSync('experiment-results/ghag/quality/espeak-baseline.wav',
+                        encodeWav(samples,sampleRate));
+          console.log('Generated ephemeral local eSpeak Pashto comparison at',sampleRate,'Hz');
+          JS
       - name: Install pinned isolated synthesis dependencies
         run: |
           python -m pip install --disable-pip-version-check 'huggingface_hub==0.26.5' 'TTS==0.22.0' 'soundfile==0.12.1' 'numpy<2' 'scipy<2'
@@ -32,7 +68,8 @@ jobs:
           python experiments/ghag-conversion.py infer \
             --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 \
             --accept-download --diagnostic-identity-cleaner \
-            --public-fleurs-reference --output experiment-results/ghag/quality
+            --public-fleurs-reference --preflight-public-fleurs-reference \
+            --output experiment-results/ghag/quality
       - name: Install pinned independent multilingual recognizer
         run: python -m pip install --disable-pip-version-check 'openai-whisper==20250625'
       - name: Compare recognizer against genuine Pashto control before Ghag
@@ -41,6 +78,7 @@ jobs:
             --reference-wav experiment-results/ghag/quality/fleurs-public-reference.wav \
             --control-transcript experiment-results/ghag/quality/fleurs-public-reference-transcript.txt \
             --generated-wav experiment-results/ghag/quality/ghag-baseline.wav \
+            --espeak-wav experiment-results/ghag/quality/espeak-baseline.wav \
             --model base --report experiment-results/ghag/quality/roundtrip-report.json
       - name: Record pinned dependency versions
         if: always()
@@ -62,5 +100,7 @@ jobs:
         run: |
           rm -f experiment-results/ghag/quality/fleurs-public-reference.wav
           rm -f experiment-results/ghag/quality/fleurs-public-reference-transcript.txt
+          rm -f experiment-results/ghag/quality/fleurs-public-reference-provenance.json
+          rm -f experiment-results/ghag/quality/espeak-baseline.wav
           rm -f experiment-results/ghag/quality/ghag-baseline.wav
           rm -rf experiment-results/ghag/quality/checkpoint

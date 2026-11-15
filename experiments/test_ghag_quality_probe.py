@@ -134,6 +134,39 @@ class GhagQualityProbeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "ephemeral"):
                 ephemeral_control_transcript(path)
 
+    def test_optional_espeak_baseline_reuses_exact_source_text_and_rejects_missing_wav(self):
+        with TemporaryDirectory() as temp:
+            ref = Path(temp) / "public.wav"
+            ghag = Path(temp) / "ghag.wav"
+            espeak = Path(temp) / "espeak.wav"
+            for path in (ref, ghag, espeak):
+                path.write_bytes(b"0" * 128)
+            expected_calls = []
+            def recognize(_model, audio):
+                expected_calls.append(Path(audio).name)
+                recognized = ("سلام دنیا" if audio == ref else
+                              "سلام تاسو څنګه یاست" if audio == ghag else "تاسو څنګه یاست")
+                return recognized, {
+                    "detected_language": "ps", "pashto_language_probability": 0.8,
+                    "recognition_seconds": 0.1,
+                }
+            fake_whisper = SimpleNamespace(load_model=lambda name, device: object())
+            fake_torch = SimpleNamespace(__version__="test")
+            with patch.dict("sys.modules", {"whisper": fake_whisper, "torch": fake_torch}), \
+                 patch.object(probe, "recognize", side_effect=recognize), \
+                 patch.object(probe, "public_reference_transcript", return_value="سلام دنیا"):
+                result = probe.run(ref, ghag, Path(temp) / "report.json", espeak_wav=espeak)
+            self.assertEqual(expected_calls, ["public.wav", "ghag.wav", "espeak.wav"])
+            self.assertIn("espeak_generated", result)
+            self.assertGreater(result["espeak_generated"]["word_error_rate"], 0)
+            self.assertEqual(result["espeak_generated"]["source"],
+                             "BUNDLED_ESPEAK_NG_PASHTO_VOICE")
+            self.assertFalse(result["pronunciation_verified"])
+            self.assertNotIn("سلام دنیا", str(result))
+            espeak.unlink()
+            with self.assertRaisesRegex(ValueError, "Real eSpeak"):
+                probe.run(ref, ghag, Path(temp) / "fail.json", espeak_wav=espeak)
+
 
 if __name__ == "__main__":
     unittest.main()
