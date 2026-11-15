@@ -6,6 +6,19 @@
 .app-title span{display:block;max-width:100%;text-wrap:pretty}
 .app-title span[lang="ps"]{font-size:1.1em;unicode-bidi:isolate;margin-top:.16rem;text-align:start}
 #test-pashto-voice{width:100%;min-height:54px;background:#23537e;color:white;margin-top:12px}
+/* A second button appears ONLY when the phone reports a local Pashto voice.
+   Both buttons speak immediately, avoiding a text-heavy settings menu. */
+#pashto-voice-choices[hidden]{display:none!important}
+#pashto-voice-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+#pashto-voice-choices button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:94px;padding:10px 7px;border:3px solid #bcc9d4;border-radius:17px;font-size:1rem;font-weight:700;line-height:1.24;touch-action:manipulation}
+#pashto-voice-choices .voice-icon{font-size:1.9rem;line-height:1.15}
+#pashto-voice-choices small{font-size:.76rem;font-weight:550;line-height:1.2}
+#voice-local{color:#143f78;background:#dfebff}
+#voice-device{color:#165438;background:#dcf2e4}
+#pashto-voice-choices button[aria-pressed="true"]{border-color:#153b62;box-shadow:inset 0 0 0 2px white,0 0 0 2px #153b62}
+#pashto-voice-choices button[aria-pressed="true"]:after{content:"✓";position:absolute;top:3px;right:8px;font-size:1.08rem}
+@media(max-width:390px){#pashto-voice-choices button{font-size:.88rem;min-height:94px}}
+
 .practice-buttons{display:grid;gap:8px}.practice-buttons button{min-height:48px;padding:10px;background:#e3ecf5;color:#172f4a;text-align:left;border-radius:10px}
 
 .resource-section h2,.share-section h2{font-size:1.13rem;margin:0 0 12px;line-height:1.45}
@@ -39,7 +52,17 @@
 
 </style></head><body><main><h1 class="app-title"><span lang="en" dir="ltr">Pashto ↔ English</span><span lang="ps" dir="rtl">پښتو ↔ انګلیسي</span></h1><p class="screenreader-only">Choose the spoken language. Experimental voice translator. / د خبرې ژبه وټاکئ. دا ازمایښتي غږیز ژباړن دی.</p>
 <section class="panel speech-panel"><div class="choices"><button id="en" class="english" aria-label="Speak English / په انګلیسي خبرې وکړئ">🎤 🗣️ English<small>Speak English / په انګلیسي خبرې وکړئ</small></button><button id="ps" class="pashto" lang="ps" dir="rtl" aria-label="Speak Pashto / په پښتو خبرې وکړئ">🎤 🗣️ پښتو<small>Speak Pashto / په پښتو خبرې وکړئ</small></button></div><p id="status" role="status" aria-live="polite">…</p></section>
-<section class="panel translation-panel"><p class="muted translation-label">Translation / ژباړه</p><div id="result" aria-live="polite" aria-label="Nothing translated yet / لا ژباړه نشته">…</div><button id="replay" disabled>▶ Replay / بیا واورئ</button><div class="playback-speed"><span aria-hidden="true">🐢</span><input id="playback-speed" type="range" min="0.7" max="1.3" step="0.15" value="1" aria-label="Playback speed / د غږ سرعت"><span aria-hidden="true">🐇</span></div><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
+<section class="panel translation-panel"><p class="muted translation-label">Translation / ژباړه</p><div id="result" aria-live="polite" aria-label="Nothing translated yet / لا ژباړه نشته">…</div><button id="replay" disabled>▶ Replay / بیا واورئ</button>
+<div id="pashto-voice-choices" hidden role="group" aria-label="Try two Pashto voices / د پښتو دوه غږونه وازمویئ">
+  <button type="button" id="voice-local" aria-pressed="true" aria-label="Play with the free local Pashto voice / په وړیا ځايي پښتو غږ یې واورئ">
+    <span class="voice-icon" aria-hidden="true">🔊 ۱</span>
+    <span lang="ps" dir="rtl">ځايي غږ</span><small>Voice 1</small>
+  </button>
+  <button type="button" id="voice-device" aria-pressed="false" aria-label="Play with this phone's Pashto voice / د دې ټیلیفون په پښتو غږ یې واورئ">
+    <span class="voice-icon" aria-hidden="true">🔊 ۲</span>
+    <span lang="ps" dir="rtl">د ټیلیفون غږ</span><small>Voice 2</small>
+  </button>
+</div><div class="playback-speed"><span aria-hidden="true">🐢</span><input id="playback-speed" type="range" min="0.7" max="1.3" step="0.15" value="1" aria-label="Playback speed / د غږ سرعت"><span aria-hidden="true">🐇</span></div><details><summary>Original speech / اصلي خبرې</summary><p id="original"></p></details></section>
 
 <section class="panel share-section" aria-labelledby="share-heading">
 <h2 id="share-heading">Share this app / دا اپ شریک کړئ</h2>
@@ -380,4 +403,4 @@ for(const [id,source,phrase] of [
 }
 if(window.speechSynthesis)window.speechSynthesis.onvoiceschanged=capabilityReport;
 capabilityReport();
-</script><script src="./picture-catalog.js?v=2"></script><script type="module" src="./visual-vocabulary.js?v=12"></script><script defer src="./stability.js?v=4"></script><script defer src="./pashto-voice.js?v=3"></script><script type="module" src="./pashto-recognition.js?v=4"></script></body></html>
+</script><script src="./picture-catalog.js?v=2"></script><script type="module" src="./visual-vocabulary.js?v=12"></script><script defer src="./stability.js?v=4"></script><script defer src="./pashto-voice.js?v=3"></script><script defer src="./pashto-voice-choice.js?v=1"></script><script type="module" src="./pashto-recognition.js?v=4"></script></body></html>
