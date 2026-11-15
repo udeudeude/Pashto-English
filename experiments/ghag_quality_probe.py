@@ -97,17 +97,49 @@ def public_reference_transcript(*, row_index=0, loader=bounded_response):
     return transcript
 
 
+def decode_bounded_waveform(path):
+    """Decode the actual WAV without a shell/ffmpeg or additional network calls.
+
+    Soundfile and SciPy already exist in the model's pinned environment.
+    This deliberately avoids Whisper's subprocess-based load_audio() path.
+    """
+    import math
+    import numpy as np
+    import soundfile as sf
+    from scipy.signal import resample_poly
+
+    path = Path(path)
+    if not path.is_file() or path.stat().st_size > 10_000_000:
+        raise ValueError("Missing or oversized speech waveform")
+    audio, sample_rate = sf.read(str(path), dtype="float32")
+    if sample_rate < 8000 or sample_rate > 96000 or audio.ndim not in (1, 2):
+        raise ValueError("Unsupported audio sample rate or channel layout")
+    if audio.ndim == 2:
+        if audio.shape[1] not in (1, 2):
+            raise ValueError("Unsupported multichannel speech waveform")
+        audio = audio.mean(axis=1)
+    duration = audio.size / sample_rate
+    if duration < 0.15 or duration > 30 or not np.isfinite(audio).all():
+        raise ValueError("Empty, excessively long or nonfinite waveform")
+    if np.max(np.abs(audio)) < 0.0001 or np.max(np.abs(audio)) > 1.05:
+        raise ValueError("Silent or invalid-amplitude waveform")
+    if sample_rate != 16000:
+        divisor = math.gcd(sample_rate, 16000)
+        audio = resample_poly(audio, 16000 // divisor, sample_rate // divisor)
+    return np.asarray(audio, dtype=np.float32)
+
+
 def recognize(model, audio_path):
-    """Force Pashto transcription; also separately detect likely language."""
+    """Force Pashto transcription; independently detect likely language."""
     import whisper
-    audio = whisper.load_audio(str(audio_path))
+    audio = decode_bounded_waveform(audio_path)
     mel = whisper.log_mel_spectrogram(
         whisper.pad_or_trim(audio), n_mels=model.dims.n_mels
     ).to(model.device)
     _, scores = model.detect_language(mel)
     start = time.monotonic()
     result = model.transcribe(
-        str(audio_path), language="ps", task="transcribe", verbose=False,
+        audio, language="ps", task="transcribe", verbose=False,
         fp16=False, temperature=0, beam_size=5, condition_on_previous_text=False,
     )
     seconds = round(time.monotonic() - start, 3)
