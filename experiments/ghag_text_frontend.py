@@ -63,6 +63,24 @@ def audit_sample(text, inventory):
     }
 
 
+
+def require_raw_grapheme_coverage(text, inventory):
+    """Fail closed: never let the *diagnostic* identity cleaner silently lose text.
+
+    A candidate preview is NOT silently substituted for the submitted input.
+    This check can reject risky input; passing it does not reproduce the
+    unknown training-time Pashto cleaner, phonetic mappings, or pronunciation.
+    """
+    audit = audit_sample(text, inventory)
+    if audit["changed_by_preview"]:
+        raise ValueError("Ghag source text requires unverified normalization; refusing silent changes")
+    if audit["unsupported_count"]:
+        codepoints = ", ".join(entry["code_point"] for entry in audit["unsupported_characters"])
+        raise ValueError("Ghag source text has graphemes absent from the model inventory: " +
+                         codepoints + ". Do not silently discard or guess pronunciations.")
+    return text
+
+
 def extract_test_texts(config, limit=10):
     """Extract only text fields from published Coqui test sentence records."""
     samples = []
