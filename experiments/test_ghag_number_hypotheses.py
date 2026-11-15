@@ -1,6 +1,7 @@
 """Independent numeral candidates MUST NOT be treated as a trained cleaner."""
 import unittest
-from ghag_number_hypotheses import inspect_standalone_numeral
+from ghag_number_hypotheses import (inspect_standalone_numeral,
+                                    audit_number_candidate_inventory)
 
 
 class PashtoNumberHypothesesTests(unittest.TestCase):
@@ -33,6 +34,22 @@ class PashtoNumberHypothesesTests(unittest.TestCase):
             result=inspect_standalone_numeral(symbol)
             self.assertFalse(result["original_trained_cleaner_verified"])
             self.assertFalse(result["safe_to_synthesize_without_context"])
+
+    def test_exact_model_inventory_cannot_silently_drop_number_letters(self):
+        covered = audit_number_candidate_inventory(set("یوهدوپنځهصفرلس"))
+        zeros = covered["candidate_numbers"][0]["readings"][0]
+        self.assertTrue(zeros["declared_inventory_covers_spelling"])
+        three = covered["candidate_numbers"][3]["readings"][0]
+        self.assertFalse(three["declared_inventory_covers_spelling"])
+        self.assertIn("U+0631", three["unsupported_codepoints"])
+        self.assertFalse(covered["production_ready"])
+        self.assertFalse(covered["original_trained_cleaner_verified"])
+        self.assertTrue(all(not entry["automatic_replacement_allowed"]
+                            for entry in covered["candidate_numbers"]))
+
+    def test_empty_inventory_cannot_claim_representability(self):
+        with self.assertRaises(ValueError):
+            audit_number_candidate_inventory(set())
 
 
 if __name__=="__main__":

@@ -12,6 +12,7 @@ from huggingface_hub import HfApi, hf_hub_download
 from ghag_text_frontend import (
     audit_sample, extract_test_texts, published_character_inventory,
 )
+from ghag_number_hypotheses import audit_number_candidate_inventory
 
 REPO = "Nasimbahar/pashto-ghag-yourtts"
 REV = "4b2521265c173a1f6b2df9584a57046cdbe614a9"
@@ -111,6 +112,7 @@ def diagnose():
         "historical_cleaner_definition_found": any(
             entry["cleaner_definition_found"] for entry in historical_python_scan),
         "sample_audits": audits,
+        "number_candidate_inventory_audit": audit_number_candidate_inventory(inventory),
         "unsupported_sample_characters": unsupported_total,
         "candidate_normalization": "NFC, remove directional marks, normalize nonbreaking spaces only",
         "original_cleaner_parity_verified": False,

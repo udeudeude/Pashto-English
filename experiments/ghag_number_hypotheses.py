@@ -46,3 +46,34 @@ def inspect_standalone_numeral(token):
         "original_trained_cleaner_verified": False,
         "safe_to_synthesize_without_context": False,
     }
+
+def audit_number_candidate_inventory(inventory):
+    """Check if published model letters can encode sourced number word options.
+
+    This establishes neither the original cleaner nor the pronunciation.
+    Missing characters are surfaced explicitly; no digits are substituted.
+    """
+    if not isinstance(inventory, (set, frozenset)) or not inventory:
+        raise ValueError("Expected a nonempty trained grapheme inventory")
+    numbers = []
+    for value, variants in enumerate(CARDINALS):
+        options = []
+        for candidate in variants:
+            missing = sorted({f"U+{ord(c):04X}" for c in candidate if c not in inventory})
+            options.append({
+                "spelling": candidate,
+                "declared_inventory_covers_spelling": not missing,
+                "unsupported_codepoints": missing,
+            })
+        numbers.append({
+            "value": value,
+            "readings": options,
+            "context_sensitive": value in (1, 2),
+            "automatic_replacement_allowed": False,
+        })
+    return {
+        "candidate_numbers": numbers,
+        "original_trained_cleaner_verified": False,
+        "pronunciation_verified": False,
+        "production_ready": False,
+    }
