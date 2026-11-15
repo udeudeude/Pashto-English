@@ -62,5 +62,27 @@ class CorpusAuditTests(unittest.TestCase):
             summarize_coverage(self.config, [])
 
 
+    def test_pinned_text_only_fallback_never_downloads_audio(self):
+        from ghag_corpus_audit import fetch_text_only_flores
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from types import SimpleNamespace
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "text.devtest"
+            path.write_text("سلام؟\nټول او تاسې؟\n", encoding="utf-8")
+            calls = []
+            def download(**kwargs):
+                calls.append(kwargs)
+                return str(path)
+            texts, metadata = fetch_text_only_flores(
+                SimpleNamespace(dataset_info=lambda name: SimpleNamespace(sha="a" * 40)),
+                download, limit=2)
+            self.assertEqual(texts, ["سلام؟", "ټول او تاسې؟"])
+            self.assertEqual(calls[0]["repo_type"], "dataset")
+            self.assertEqual(calls[0]["filename"], "devtest/pbt_Arab.devtest")
+            self.assertEqual(metadata["revision"], "a" * 40)
+            self.assertNotIn("سلام", str(metadata))
+
+
 if __name__ == "__main__":
     unittest.main()
