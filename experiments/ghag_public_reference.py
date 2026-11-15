@@ -84,7 +84,7 @@ def validate_clip(samples, sample_rate):
                  "peak": round(peak, 6), "rms": round(rms, 6)}
 
 
-def fetch_reference(output_path, *, row_idx=0, opener=urlopen):
+def fetch_reference(output_path, *, row_idx=0, opener=urlopen, transcript_path=None):
     """Download just one public example via the Hugging Face dataset viewer.
 
     The dataset is CC BY 4.0. No voice/audio/embeddings are included in reports.
@@ -108,6 +108,15 @@ def fetch_reference(output_path, *, row_idx=0, opener=urlopen):
     if item.get("row_idx") != row_idx:
         raise ValueError("Dataset viewer returned an unexpected row index")
     row = item["row"]
+    # Optional ephemeral control transcript for an *independent* ASR check.
+    # It is never returned in metadata or added to GitHub workflow artifacts.
+    if transcript_path is not None:
+        text = row.get("transcription")
+        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 500:
+            raise ValueError("Public real-speech control has no bounded transcript")
+        transcript_file = Path(transcript_path)
+        transcript_file.parent.mkdir(parents=True, exist_ok=True)
+        transcript_file.write_text(text.strip() + "\n", encoding="utf-8")
     audio_url = reference_audio_url(row)
     original_bytes = bounded_response(audio_url, MAX_AUDIO_BYTES, opener)
     import numpy as np
