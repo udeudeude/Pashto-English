@@ -122,13 +122,14 @@ def recognize(model, audio_path):
 
 
 def run(reference_wav, generated_wav, output, model_name=ASR_MODEL):
-    import whisper
-    import torch
+    # Validate configuration and files without importing heavyweight models.
     if model_name not in ("base", "small"):
         raise ValueError("Only a bounded multilingual recognition model is allowed")
     paths = (Path(reference_wav), Path(generated_wav))
     if any(not p.is_file() or p.stat().st_size < 64 for p in paths):
         raise ValueError("Both real-reference and generated waveforms are required")
+    import whisper
+    import torch
     result = {
         "evaluation": "EXPLORATORY_INDEPENDENT_ASR_NOT_HUMAN_INTELLIGIBILITY",
         "whisper_package": MODEL_VERSION,
