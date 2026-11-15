@@ -1,0 +1,62 @@
+name: Ghag independent Pashto speech recognition diagnostic
+on:
+  push:
+    branches: [experiment/ghag-speaker-inference]
+    paths:
+      - '.github/workflows/ghag-quality-probe.yml'
+      - 'experiments/ghag_quality_probe.py'
+      - 'experiments/test_ghag_quality_probe.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-reference-and-ghag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Test scoring, strict reference provenance, and transcript privacy
+        run: |
+          python -m py_compile experiments/ghag_quality_probe.py experiments/test_ghag_quality_probe.py
+          python -m unittest discover -s experiments -p 'test_ghag_quality_probe.py' -v
+      - name: Install pinned isolated synthesis dependencies
+        run: |
+          python -m pip install --disable-pip-version-check 'huggingface_hub==0.26.5' 'TTS==0.22.0' 'soundfile==0.12.1' 'numpy<2' 'scipy<2'
+      - name: Generate unverified Ghag output using licensed public Pashto speech
+        run: |
+          python experiments/ghag-conversion.py infer \
+            --revision 4b2521265c173a1f6b2df9584a57046cdbe614a9 \
+            --accept-download --diagnostic-identity-cleaner \
+            --public-fleurs-reference --output experiment-results/ghag/quality
+      - name: Install pinned independent multilingual recognizer
+        run: python -m pip install --disable-pip-version-check 'openai-whisper==20250625'
+      - name: Compare recognizer against genuine Pashto control before Ghag
+        run: |
+          python experiments/ghag_quality_probe.py \
+            --reference-wav experiment-results/ghag/quality/fleurs-public-reference.wav \
+            --generated-wav experiment-results/ghag/quality/ghag-baseline.wav \
+            --model base --report experiment-results/ghag/quality/roundtrip-report.json
+      - name: Record pinned dependency versions
+        if: always()
+        run: |
+          mkdir -p experiment-results/ghag/quality
+          python -m pip freeze > experiment-results/ghag/quality/pip-freeze.txt
+      - name: Publish JSON evidence only, NEVER weights, recordings, or transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghag-independent-asr-diagnostic
+          path: |
+            experiment-results/ghag/quality/report.json
+            experiment-results/ghag/quality/roundtrip-report.json
+            experiment-results/ghag/quality/pip-freeze.txt
+          if-no-files-found: warn
+      - name: Delete all generated speech, borrowed speech, and weights
+        if: always()
+        run: |
+          rm -f experiment-results/ghag/quality/fleurs-public-reference.wav
+          rm -f experiment-results/ghag/quality/ghag-baseline.wav
+          rm -rf experiment-results/ghag/quality/checkpoint
