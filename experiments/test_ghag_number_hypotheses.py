@@ -41,7 +41,7 @@ class PashtoNumberHypothesesTests(unittest.TestCase):
         self.assertTrue(zeros["declared_inventory_covers_spelling"])
         three = covered["candidate_numbers"][3]["readings"][0]
         self.assertFalse(three["declared_inventory_covers_spelling"])
-        self.assertIn("U+0631", three["unsupported_codepoints"])
+        self.assertIn("U+06D0", three["unsupported_codepoints"])
         self.assertFalse(covered["production_ready"])
         self.assertFalse(covered["original_trained_cleaner_verified"])
         self.assertTrue(all(not entry["automatic_replacement_allowed"]
