@@ -14,6 +14,7 @@ import soundfile as sf
 
 from ghag_public_reference import (
     bounded_response, fetch_reference, reference_audio_url, validate_clip,
+    verify_preflight_reference,
 )
 
 
@@ -182,6 +183,37 @@ class ReferenceTests(unittest.TestCase):
     def test_rejects_excessive_row_index(self):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(ValueError):
             fetch_reference(Path(tmp) / "x.wav", row_idx=10_000, opener=self.fake_opener)
+
+    def test_reuse_preflight_validated_reference_without_any_second_network_request(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "reference.wav"
+            text = Path(tmp) / "transcript.txt"
+            manifest = Path(tmp) / "manifest.json"
+            metadata = fetch_reference(path, transcript_path=text, opener=self.fake_opener)
+            manifest.write_text(json.dumps(metadata), encoding="utf-8")
+            verified = verify_preflight_reference(path, text, manifest)
+            self.assertEqual(verified["reference_wav_sha256"], metadata["reference_wav_sha256"])
+            self.assertEqual(verified["license"], "cc-by-4.0")
+
+    def test_preflight_rejects_tampered_wav_wrong_row_and_empty_transcript(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "reference.wav"
+            text = Path(tmp) / "transcript.txt"
+            manifest = Path(tmp) / "manifest.json"
+            metadata = fetch_reference(path, transcript_path=text, opener=self.fake_opener)
+            manifest.write_text(json.dumps(metadata), encoding="utf-8")
+            bad = {**metadata, "row_index": 1}
+            manifest.write_text(json.dumps(bad), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "provenance"):
+                verify_preflight_reference(path, text, manifest)
+            manifest.write_text(json.dumps(metadata), encoding="utf-8")
+            text.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "transcript"):
+                verify_preflight_reference(path, text, manifest)
+            text.write_text("real public Pashto reference", encoding="utf-8")
+            path.write_bytes(b"tampered WAV")
+            with self.assertRaisesRegex(ValueError, "checksum"):
+                verify_preflight_reference(path, text, manifest)
 
 
 if __name__ == "__main__":

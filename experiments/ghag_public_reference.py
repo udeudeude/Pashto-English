@@ -153,3 +153,37 @@ def fetch_reference(output_path, *, row_idx=0, opener=urlopen, transcript_path=N
         "speaker_identity_verified": False,
         "training_cleaner_parity_verified": False,
     }
+
+def verify_preflight_reference(reference_wav, transcript_path, manifest_path):
+    """Reuse a validated FLEURS recording without another flaky viewer request.
+
+    A provenance manifest MUST match the fixed licensed corpus, row and WAV
+    checksum. It is not an authentication signature, but prevents accidental
+    reuse of mismatched clips or unvalidated external recordings.
+    """
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    required = {
+        "dataset": DATASET, "config": CONFIG, "split": SPLIT,
+        "row_index": 0, "license": LICENSE,
+        "speech_source": "PUBLIC_HUMAN_SPEECH", "reference_sample_rate": 16000,
+        "speaker_identity_verified": False,
+        "training_cleaner_parity_verified": False,
+    }
+    if not isinstance(manifest, dict) or any(
+        type(manifest.get(key)) is not type(value) or manifest.get(key) != value
+        for key, value in required.items()
+    ):
+        raise ValueError("Preflight public speaker reference has invalid provenance")
+    reference_wav = Path(reference_wav)
+    audio_digest = hashlib.sha256(reference_wav.read_bytes()).hexdigest()
+    if audio_digest != manifest.get("reference_wav_sha256"):
+        raise ValueError("Preflight public reference checksum mismatch")
+    text = Path(transcript_path).read_text(encoding="utf-8").strip()
+    if not 1 <= len(text) <= 500:
+        raise ValueError("Preflight public reference transcript is missing or too long")
+    import soundfile as sf
+    samples, rate = sf.read(str(reference_wav), dtype="float32")
+    if rate != 16000:
+        raise ValueError("Preflight public reference sample rate mismatch")
+    validate_clip(samples, rate)
+    return manifest

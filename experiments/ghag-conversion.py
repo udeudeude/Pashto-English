@@ -93,6 +93,8 @@ def run(args):
     try:
         if getattr(args, "public_fleurs_reference", False) and args.diagnostic_synthetic_reference:
             raise ValueError("Choose only one experimental speaker reference source")
+        if getattr(args, "preflight_public_fleurs_reference", False) and not getattr(args, "public_fleurs_reference", False):
+            raise ValueError("Preflight reference requires explicit public FLEURS mode")
         from huggingface_hub import HfApi, snapshot_download
         api = HfApi()
         info = api.model_info(REPO, revision=args.revision)
@@ -187,11 +189,19 @@ def run(args):
             if getattr(args, "public_fleurs_reference", False):
                 # CC BY 4.0 Pashto speech stays local to the isolated runner.
                 # A genuine reference does NOT resolve the missing training cleaner.
-                from ghag_public_reference import fetch_reference
+                from ghag_public_reference import fetch_reference, verify_preflight_reference
                 reference_wav = output / "fleurs-public-reference.wav"
-                report["public_reference_provenance"] = fetch_reference(
-                    reference_wav,
-                    transcript_path=output / "fleurs-public-reference-transcript.txt")
+                transcript_path = output / "fleurs-public-reference-transcript.txt"
+                if getattr(args, "preflight_public_fleurs_reference", False):
+                    report["public_reference_provenance"] = verify_preflight_reference(
+                        reference_wav, transcript_path,
+                        output / "fleurs-public-reference-provenance.json",
+                    )
+                    report["reference_acquisition"] = "VERIFIED_PREFLIGHT_REUSED_NO_NETWORK"
+                else:
+                    report["public_reference_provenance"] = fetch_reference(
+                        reference_wav, transcript_path=transcript_path)
+                    report["reference_acquisition"] = "DIRECT_VIEWER_REQUEST"
                 report["speaker_conditioning"] = "PUBLIC_FLEURS_HUMAN_SPEECH_UNVERIFIED"
             else:
                 reference_wav = output / "diagnostic-reference.wav"
@@ -256,6 +266,7 @@ def main():
     parser.add_argument("--diagnostic-identity-cleaner", action="store_true", help="UNVERIFIED identity cleaner solely to diagnose subsequent loading blockers")
     parser.add_argument("--diagnostic-synthetic-reference", action="store_true", help="UNVERIFIED synthesized tone used to probe speaker encoder without speech or private recordings")
     parser.add_argument("--public-fleurs-reference", action="store_true", help="Use one CC BY 4.0 Pashto FLEURS human recording in an isolated experiment; never publish it or claim text-cleaner parity")
+    parser.add_argument("--preflight-public-fleurs-reference", action="store_true", help="Reuse previously fetched and checksum-validated FLEURS audio and ephemeral transcript; requires --public-fleurs-reference")
     args = parser.parse_args()
     result = run(args)
     print(json.dumps(result, indent=2, ensure_ascii=False))
