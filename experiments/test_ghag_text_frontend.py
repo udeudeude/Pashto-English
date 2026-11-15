@@ -72,7 +72,7 @@ class GhagTextFrontendTests(unittest.TestCase):
 
     def test_preflight_never_silently_normalizes_source(self):
         with self.assertRaisesRegex(ValueError, "unverified normalization"):
-            require_raw_grapheme_coverage("سلام\\u200f", self.inventory)
+            require_raw_grapheme_coverage("سلام\u200f", self.inventory)
 
     def test_preflight_accepts_unmodified_known_graphemes_only(self):
         text = "سلام؟"
