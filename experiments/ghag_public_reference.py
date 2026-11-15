@@ -10,6 +10,8 @@ import json
 import math
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
+from urllib.error import HTTPError
+import time
 from urllib.request import Request, urlopen
 
 DATASET = "google/fleurs"
@@ -24,8 +26,9 @@ MAX_AUDIO_BYTES = 6_000_000
 def bounded_response(url, max_bytes, opener=urlopen):
     req = Request(url, headers={"User-Agent": "Pashto-English-Ghag-Research/1.0"})
     # HF's first cold FLEURS parquet row can take more than 30 seconds.
-    # Retry ONLY transport timeouts; never retry validation failures.
-    for attempt in range(2):
+    # Retry bounded transient HTTP 429/5xx and transport timeouts only;
+    # NEVER retry invalid content, unsafe redirects or authorization failures.
+    for attempt in range(3):
         try:
             with opener(req, timeout=75) as stream:
                 final_url = stream.geturl()
@@ -36,8 +39,12 @@ def bounded_response(url, max_bytes, opener=urlopen):
             if not data or len(data) > max_bytes:
                 raise ValueError("Reference response is empty or exceeds configured size limit")
             return data
+        except HTTPError as error:
+            if error.code not in (429, 500, 502, 503, 504) or attempt == 2:
+                raise
+            time.sleep(1 if attempt == 0 else 3)
         except (TimeoutError, ConnectionError):
-            if attempt:
+            if attempt >= 1:
                 raise
     raise AssertionError("Unreachable reference acquisition state")
 
