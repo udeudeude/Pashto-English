@@ -39,7 +39,7 @@ jobs:
           result=fetch_reference(base/'fleurs-public-reference.wav',
                                  transcript_path=base/'fleurs-public-reference-transcript.txt')
           (base/'fleurs-public-reference-provenance.json').write_text(
-              json.dumps(result,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+              json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print('Validated FLEURS source, license, row 0, sample rate and audio checksum')
           PY
       - uses: actions/setup-node@v4
