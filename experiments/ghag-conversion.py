@@ -117,6 +117,15 @@ def run(args):
         report["config_keys"] = sorted(json.loads(config.read_text()).keys())
         if args.stage == "inspect-weights":
             return report
+        # Fail closed on missing trained symbols BEFORE loading the heavy model.
+        # This does not validate or replace the unpublished training-time cleaner.
+        from ghag_text_frontend import (
+            published_character_inventory, require_raw_grapheme_coverage,
+        )
+        model_config = json.loads(config.read_text())
+        require_raw_grapheme_coverage(TEXT, published_character_inventory(model_config))
+        report["raw_grapheme_inventory_coverage"] = "PASS_DIAGNOSTIC_ONLY"
+        report["original_pashto_cleaner_verified"] = False
         # Coqui TTS provides the original inference path. Pin it separately;
         # dependency conflicts are an experiment result, not a reason to guess.
         from TTS.api import TTS
