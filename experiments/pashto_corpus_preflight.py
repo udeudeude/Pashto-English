@@ -39,7 +39,7 @@ def safe_path(raw):
 
 def flac_header(header, size):
     """Check STREAMINFO bounds; never claim to decode or listen to a recording."""
-    if size < 42 or header[:4] != b'fLaC' or header[4] & 0x7f != 0:
+    if size < 42 or len(header) != 42 or header[:4] != b'fLaC' or header[4] & 0x7f != 0:
         raise ValueError('Not an ordinary FLAC STREAMINFO header')
     length = int.from_bytes(header[5:8], 'big')
     if length != 34:
