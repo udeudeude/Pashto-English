@@ -8,6 +8,7 @@ import json
 import math
 import struct
 import unittest
+from types import SimpleNamespace
 import wave
 from urllib.parse import parse_qs, urlsplit
 
@@ -108,6 +109,21 @@ class PashtoAsrControlTests(unittest.TestCase):
         self.assertEqual(probe.pashto_script_fraction("hello"), 0)
         self.assertEqual(probe.pashto_script_fraction("!!!"), 0)
         self.assertEqual(probe.pashto_script_fraction("سلام"), 1)
+
+    def test_require_exact_model_revision_license_and_speech_task(self):
+        good = SimpleNamespace(sha="a" * 40,
+                               card_data={"license": "apache-2.0"},
+                               pipeline_tag="automatic-speech-recognition")
+        self.assertEqual(probe.validated_model_metadata(good),
+                         ("a" * 40, "apache-2.0"))
+        for change in ({"sha": "not-a-revision"},
+                       {"card_data": {"license": "cc-by-nc-4.0"}},
+                       {"card_data": None},
+                       {"pipeline_tag": "text-generation"}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                probe.validated_model_metadata(SimpleNamespace(**{
+                    **vars(good), **change
+                }))
 
     def test_fetch_control_uses_test_split_and_trusted_audio(self):
         wav = synthetic_wav()
