@@ -1,0 +1,34 @@
+name: Pashto speech corpus offline preflight
+on:
+  pull_request:
+    paths:
+      - 'experiments/pashto_corpus_preflight.py'
+      - 'experiments/test_pashto_corpus_preflight.py'
+      - 'docs/PASHTO_CORPUS_PREFLIGHT.md'
+      - '.github/workflows/pashto-corpus-preflight.yml'
+  push:
+    branches: [experiment/pashto-tts-corpus-preflight]
+    paths:
+      - 'experiments/pashto_corpus_preflight.py'
+      - 'experiments/test_pashto_corpus_preflight.py'
+      - 'docs/PASHTO_CORPUS_PREFLIGHT.md'
+      - '.github/workflows/pashto-corpus-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  preflight-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile offline corpus inspector
+        run: python -m py_compile experiments/pashto_corpus_preflight.py
+      - name: Run synthetic audio/transcript archive safety tests
+        run: python -m unittest discover -s experiments -p 'test_pashto_corpus_preflight.py' -v
+      - name: Verify local-only command line interface
+        run: python experiments/pashto_corpus_preflight.py --help
+      # No actual corpus is available in this workflow. Never upload source
+      # audio, utterances, archive data, speaker IDs or model weights.
