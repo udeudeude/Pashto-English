@@ -189,6 +189,21 @@ def fetch_control(row_index, *, loader=bounded_response):
     }
 
 
+def validated_model_metadata(info):
+    """Require a verified public-model revision and explicit source license."""
+    revision = getattr(info, "sha", None)
+    card = getattr(info, "card_data", None)
+    license_id = card.get("license") if hasattr(card, "get") else None
+    if not isinstance(revision, str) or len(revision) != 40 or any(
+            ch not in "0123456789abcdef" for ch in revision):
+        raise ValueError("Recognizer model revision was not uniquely resolved")
+    if license_id != MODEL_LICENSE:
+        raise ValueError("Recognizer model license missing or changed")
+    if getattr(info, "pipeline_tag", None) != "automatic-speech-recognition":
+        raise ValueError("Model no longer declares speech recognition")
+    return revision, license_id
+
+
 def run():
     """Pinned-public-model CPU-only evaluation, keeping audio entirely ephemeral."""
     from huggingface_hub import HfApi
@@ -196,15 +211,10 @@ def run():
     import torch
     import transformers
 
-    model_info = HfApi().model_info(MODEL_ID)
-    revision = model_info.sha
-    if not isinstance(revision, str) or len(revision) != 40:
-        raise ValueError("Recognizer model revision was not uniquely resolved")
-    license_id = (model_info.cardData or {}).get("license")
-    if license_id != MODEL_LICENSE:
-        raise ValueError("Recognizer model license changed: stop for review")
-    if getattr(model_info, "pipeline_tag", None) != "automatic-speech-recognition":
-        raise ValueError("Model no longer declares speech recognition")
+    # cardData=True requests the actual card metadata; the SDK exposes it as
+    # .card_data (not .cardData). Never treat an absent license as approved.
+    model_info = HfApi().model_info(MODEL_ID, cardData=True)
+    revision, license_id = validated_model_metadata(model_info)
     torch.set_num_threads(2)
     loaded = time.monotonic()
     processor = AutoProcessor.from_pretrained(
