@@ -1,0 +1,78 @@
+name: Pashto independent recognizer calibration (experimental)
+on:
+  push:
+    branches: [experiment/pashto-independent-asr-controls]
+    paths:
+      - '.github/workflows/pashto-asr-controls.yml'
+      - 'experiments/pashto_asr_controls.py'
+      - 'experiments/test_pashto_asr_controls.py'
+      - 'experiments/PASHTO_ASR_CONTROL_EVIDENCE.md'
+  pull_request:
+    paths:
+      - '.github/workflows/pashto-asr-controls.yml'
+      - 'experiments/pashto_asr_controls.py'
+      - 'experiments/test_pashto_asr_controls.py'
+      - 'experiments/PASHTO_ASR_CONTROL_EVIDENCE.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pashto-public-control
+  cancel-in-progress: true
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install small audio-decoding dependencies for synthetic tests
+        run: python -m pip install --disable-pip-version-check 'numpy<2' 'scipy<2' 'soundfile==0.12.1'
+      - name: Compile source, run all synthetic scoring and source checks
+        run: |
+          python -m py_compile experiments/pashto_asr_controls.py
+          python -m unittest discover -s experiments -p 'test_pashto_asr_controls.py' -v
+
+  isolated-real-control:
+    # Full model download is only for intentionally isolated experimental branch.
+    # PRs from other branches only run bounded offline tests.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: offline-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_HOME: /tmp/pashto-asr-control-cache
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '90'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CPU-only PyTorch, never CUDA
+        run: python -m pip install --disable-pip-version-check 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Install pinned model, processor and public-recording dependencies
+        run: |
+          python -m pip install --disable-pip-version-check \
+            'transformers==4.46.3' 'huggingface_hub==0.26.5' \
+            'numpy<2' 'scipy<2' 'soundfile==0.12.1' 'safetensors>=0.4,<1'
+      - name: Run three genuine licensed Pashto test-speech controls first
+        run: |
+          python experiments/pashto_asr_controls.py \
+            --report experiment-results/asr/pashto-three-control-report.json
+      - name: Publish numerical calibration and provenance JSON ONLY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pashto-independent-recognizer-controls
+          path: experiment-results/asr/pashto-three-control-report.json
+          if-no-files-found: warn
+      - name: Delete ephemeral public recordings and model cache
+        if: always()
+        run: |
+          rm -rf "$HF_HOME"
+          rm -rf experiment-results/asr/private
+          # The numerical JSON report is safe to retain as an artifact.
