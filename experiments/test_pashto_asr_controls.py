@@ -6,9 +6,11 @@ transcripts or speaker identities are uploaded by this test module.
 import io
 import json
 import math
+import sys
 import struct
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 import wave
 from urllib.parse import parse_qs, urlsplit
 
@@ -124,6 +126,32 @@ class PashtoAsrControlTests(unittest.TestCase):
                 probe.validated_model_metadata(SimpleNamespace(**{
                     **vars(good), **change
                 }))
+
+    def test_exact_pinned_huggingface_metadata_call_before_model_download(self):
+        called = []
+        def model_info(model, **kwargs):
+            called.append((model, kwargs))
+            return SimpleNamespace(sha="a" * 40,
+                                   card_data={"license": "apache-2.0"},
+                                   pipeline_tag="automatic-speech-recognition")
+        fake_hub = SimpleNamespace(HfApi=lambda: SimpleNamespace(model_info=model_info))
+        def refuse_weights(*_args, **_kwargs):
+            raise RuntimeError("test stop before model download")
+        fake_trans = SimpleNamespace(
+            AutoModelForCTC=object,
+            AutoProcessor=SimpleNamespace(from_pretrained=refuse_weights))
+        fake_torch = SimpleNamespace(set_num_threads=lambda _: None)
+        with patch.dict(sys.modules, {
+                "huggingface_hub": fake_hub,
+                "transformers": fake_trans,
+                "torch": fake_torch}):
+            with self.assertRaisesRegex(RuntimeError, "before model download"):
+                probe.run()
+        self.assertEqual(called, [(
+            probe.MODEL_ID,
+            {"expand": ["sha", "cardData", "pipeline_tag"], "token": False}
+        )])
+        self.assertEqual(probe.run.phase, "model-processor-load")
 
     def test_fetch_control_uses_test_split_and_trusted_audio(self):
         wav = synthetic_wav()
