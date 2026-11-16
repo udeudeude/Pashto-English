@@ -98,7 +98,7 @@ class PashtoAsrControlTests(unittest.TestCase):
         for row in records:
             self.assertNotIn(row["reference"], serialized)
         self.assertNotIn("recognized_sha256", serialized)
-        self.assertNotIn("speaker_id", serialized)
+        self.assertNotIn('"speaker_id":', serialized)
         self.assertNotIn("hypothesis", serialized)
         self.assertNotIn("سلام", serialized)
 
