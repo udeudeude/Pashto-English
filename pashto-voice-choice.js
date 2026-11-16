@@ -80,7 +80,7 @@
       utterance.lang=found.lang;
       utterance.voice=found;
       utterance.rate=boundedSpeed;
-      let finished=false,started=false,watchdog;
+      let finished=false,watchdog;
       const task={cancel:()=>finish(null,{cancelled:true})};
       function finish(error,result){
         if(finished)return;
@@ -94,15 +94,21 @@
       }
       nativeTask=task;
       utterance.onstart=()=>{
-        started=true;
         clearTimeout(watchdog);
         if(version!==generation)return;
+        // Some browsers dispatch start but never dispatch end or error.
+        // Allow generous time for long/slow speech before restoring eSpeak.
+        const completionDeadline=Math.max(20000,Math.min(180000,
+          12000+text.length*400/boundedSpeed));
+        watchdog=setTimeout(()=>{
+          finish(Error('Device Pashto voice stopped responding.'));
+          try{synthesis.cancel()}catch(error){}
+        },completionDeadline);
         window.pashtoStatus?.('Playing Pashto translation with device voice. / د ټیلیفون په غږ پښتو غږېږي.');
       };
       utterance.onend=()=>finish(null,{played:true,engine:'device',speed:boundedSpeed});
       utterance.onerror=event=>finish(Error('Device voice error: '+(event?.error||'unknown')));
       watchdog=setTimeout(()=>{
-        if(started)return;
         finish(Error('Device Pashto voice did not start.'));
         try{synthesis.cancel()}catch(error){}
       },4500);
