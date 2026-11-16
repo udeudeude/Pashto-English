@@ -211,10 +211,12 @@ def run():
     import torch
     import transformers
 
-    # cardData=True requests the actual card metadata; the SDK exposes it as
-    # .card_data (not .cardData). Never treat an absent license as approved.
+    # The pinned Hugging Face Hub client accepts "expand", not "cardData"
+    # as a direct model_info() parameter. The returned attribute is .card_data.
+    # Never treat an absent license as approved, and do not use credentials.
     run.phase = "model-metadata"
-    model_info = HfApi().model_info(MODEL_ID, cardData=True)
+    model_info = HfApi().model_info(
+        MODEL_ID, expand=["sha", "cardData", "pipeline_tag"], token=False)
     revision, license_id = validated_model_metadata(model_info)
     torch.set_num_threads(2)
     loaded = time.monotonic()
