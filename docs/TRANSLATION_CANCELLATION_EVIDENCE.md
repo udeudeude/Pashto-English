@@ -22,4 +22,6 @@ The previous controller discarded translations after a new conversation began, b
 
 ## Verification
 
-Await exact workflow results on the pull-request head. Do not claim any browser checks passed until the GitHub Actions run completes. No production deployment is intended in this pull request.
+GitHub Actions [run 43957988474](https://github.com/udeudeude/Pashto-English/actions/runs/43957988474), commit `58f9847618608cf32739552ba388f7b5e2961547`, **success** (November 16, 2026). The browser job completed all source, recognition, cultural/translation, and syntax checks and reported **92 passing mobile Chromium/WebKit browser tests, 8 intentional skips**. Both new translation cancellation tests passed in each browser (4 case executions); existing network-failure retry and stale-result tests passed in both browsers. The separate actual bundled Pashto eSpeak waveform job also passed. [Browser job](https://github.com/udeudeude/Pashto-English/actions/runs/43957988474/job/133617526479); [voice job](https://github.com/udeudeude/Pashto-English/actions/runs/43957988474/job/133617526891).
+
+This result covers the code commit tested above, not physical mobile hardware or quality of translated text. The evidence-update-only follow-up commit needs its own successful check before the whole pull request can be called green. The live `main` branch remains unchanged.
