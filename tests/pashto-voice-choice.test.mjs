@@ -10,6 +10,15 @@ function harness(available=[]){
   let voices=available,deviceBehavior=null;
   const localCalls=[],nativeCalls=[],messages=[];
   let cancelled=0,localStops=0,unlockCalls=0;
+  // Deterministic clock: exercise both timeout paths without sleeping.
+  let nextTimeoutId=0;
+  const timeouts=new Map();
+  const fakeSetTimeout=(callback,delay)=>{
+    const id=++nextTimeoutId;
+    timeouts.set(id,{callback,delay});
+    return id;
+  };
+  const fakeClearTimeout=id=>timeouts.delete(id);
   function button(){
     return {
       attrs:{},handler:null,
@@ -56,12 +65,19 @@ function harness(available=[]){
     addEventListener(){},
   };
   runInNewContext(source,{window,document,MutationObserver:FakeObserver,
-    setTimeout,clearTimeout,console});
+    setTimeout:fakeSetTimeout,clearTimeout:fakeClearTimeout,console});
   return {
     elements,window,localCalls,nativeCalls,messages,
     get cancelled(){return cancelled},
     get localStops(){return localStops},
     get unlockCalls(){return unlockCalls},
+    get pendingTimeouts(){return [...timeouts.values()].map(entry=>entry.delay)},
+    fireNextTimeout(){
+      const next=[...timeouts].sort((a,b)=>a[1].delay-b[1].delay)[0];
+      assert.ok(next,'Expected a pending playback timeout');
+      timeouts.delete(next[0]);
+      next[1].callback();
+    },
     setVoices(value){voices=value;window.pashtoVoiceChoice.refresh()},
     setDeviceBehavior(fn){deviceBehavior=fn},
   };
@@ -151,4 +167,53 @@ test('The default always remains the existing bundled Pashto voice',async()=>{
   assert.equal(app.localCalls[0].options.speed,1.3);
   assert.equal(returned.played,true);
   assert.equal(app.nativeCalls.length,0);
+});
+
+test('Device voice that never starts falls back after the bounded startup deadline',async()=>{
+  const app=harness([localPashto]);
+  app.setDeviceBehavior(()=>{});
+  app.elements['voice-device'].click();
+  assert.deepEqual(app.pendingTimeouts,[4500]);
+  app.fireNextTimeout();
+  await settle();
+  assert.equal(app.window.pashtoVoice.mode(),'local');
+  assert.equal(app.localCalls.length,1);
+  assert.equal(app.localCalls[0].text,'سلام، تاسو څنګه یاست؟');
+  assert.deepEqual(app.pendingTimeouts,[]);
+  assert.ok(app.messages.some(text=>text.includes('local voice')));
+});
+
+test('Device voice that starts but never ends recovers to bundled eSpeak',async()=>{
+  const app=harness([localPashto]);
+  app.setDeviceBehavior(utterance=>queueMicrotask(()=>utterance.onstart?.()));
+  app.elements['voice-device'].click();
+  await settle();
+  assert.equal(app.localCalls.length,0);
+  assert.equal(app.pendingTimeouts.length,1);
+  assert.ok(app.pendingTimeouts[0]>=20000);
+  app.fireNextTimeout();
+  await settle();
+  assert.equal(app.window.pashtoVoice.mode(),'local');
+  assert.equal(app.localCalls.length,1);
+  assert.ok(app.cancelled>0);
+  assert.deepEqual(app.pendingTimeouts,[]);
+});
+
+test('A stopped device voice never resurrects speech after the start event',async()=>{
+  const app=harness([localPashto]);
+  app.setDeviceBehavior(utterance=>queueMicrotask(()=>utterance.onstart?.()));
+  app.elements['voice-device'].click();
+  await settle();
+  assert.equal(app.pendingTimeouts.length,1);
+  app.window.pashtoVoice.stop();
+  assert.deepEqual(app.pendingTimeouts,[]);
+  assert.equal(app.localCalls.length,0);
+});
+
+test('Normally completed native speech clears its completion watchdog',async()=>{
+  const app=harness([localPashto]);
+  app.elements['voice-device'].click();
+  await settle();
+  assert.deepEqual(app.pendingTimeouts,[]);
+  assert.equal(app.localCalls.length,0);
 });
