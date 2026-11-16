@@ -93,28 +93,36 @@ class GhagQualityProbeTests(unittest.TestCase):
             self.assertNotIn("سلام تاسو", text)
             self.assertEqual(json.loads(text)["ghag_generated"]["character_error_rate"], 0)
 
-    def test_bad_control_never_marks_quality_evaluation_informative(self):
+    def test_bad_control_skips_both_generated_voices_without_leaking_transcripts(self):
         with TemporaryDirectory() as temp:
             ref = Path(temp) / "reference.wav"
             gen = Path(temp) / "generated.wav"
-            for p in (ref, gen):
+            espeak = Path(temp) / "espeak.wav"
+            for p in (ref, gen, espeak):
                 p.write_bytes(b"0" * 128)
             fake_whisper = SimpleNamespace(load_model=lambda name, device: object())
             fake_torch = SimpleNamespace(__version__="test")
+            calls = []
+            def fail_on_real_pashto(_model, path):
+                calls.append(path.name)
+                if path != ref:
+                    raise AssertionError("Uncalibrated recognizer scored a generated voice")
+                return ("nonsense", {"detected_language": "en",
+                                     "pashto_language_probability": 0.01,
+                                     "recognition_seconds": 0.1})
+            report = Path(temp) / "report.json"
             with patch.dict("sys.modules", {"whisper": fake_whisper, "torch": fake_torch}), \
                  patch.object(probe, "public_reference_transcript", return_value="سلام دنیا"), \
-                 patch.object(probe, "recognize", side_effect=[
-                     ("nonsense", {"detected_language": "en",
-                                   "pashto_language_probability": 0.01,
-                                   "recognition_seconds": 0.1}),
-                     ("سلام تاسو څنګه یاست", {"detected_language": "ps",
-                                              "pashto_language_probability": 0.9,
-                                              "recognition_seconds": 0.1}),
-                 ]):
-                result = probe.run(ref, gen, Path(temp) / "report.json")
+                 patch.object(probe, "recognize", side_effect=fail_on_real_pashto):
+                result = probe.run(ref, gen, report, espeak_wav=espeak)
+            self.assertEqual(calls, ["reference.wav"])
             self.assertFalse(result["asr_control_usable_for_exploration"])
             self.assertFalse(result["pronunciation_verified"])
             self.assertIn("failed", result["interpretation"])
+            self.assertIn("generated_evaluation_skipped", result)
+            self.assertNotIn("ghag_generated", result)
+            self.assertNotIn("espeak_generated", result)
+            self.assertNotIn("سلام دنیا", report.read_text(encoding="utf-8"))
 
     def test_requires_real_waveforms_and_valid_model_choice(self):
         with TemporaryDirectory() as temp:
