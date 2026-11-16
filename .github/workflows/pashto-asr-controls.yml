@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: pashto-public-control
+  group: pashto-public-control-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   offline-tests:
