@@ -213,12 +213,15 @@ def run():
 
     # cardData=True requests the actual card metadata; the SDK exposes it as
     # .card_data (not .cardData). Never treat an absent license as approved.
+    run.phase = "model-metadata"
     model_info = HfApi().model_info(MODEL_ID, cardData=True)
     revision, license_id = validated_model_metadata(model_info)
     torch.set_num_threads(2)
     loaded = time.monotonic()
+    run.phase = "model-processor-load"
     processor = AutoProcessor.from_pretrained(
         MODEL_ID, revision=revision, trust_remote_code=False)
+    run.phase = "model-weight-load"
     model = AutoModelForCTC.from_pretrained(
         MODEL_ID, revision=revision, trust_remote_code=False,
         use_safetensors=True)
@@ -226,7 +229,9 @@ def run():
     load_seconds = round(time.monotonic() - loaded, 3)
     observations = []
     for row_index in CONTROL_ROWS:
+        run.phase = "public-test-audio-row-" + str(row_index)
         control = fetch_control(row_index)
+        run.phase = "model-decode-row-" + str(row_index)
         started = time.monotonic()
         inputs = processor(control["samples"], sampling_rate=16000,
                            return_tensors="pt")
@@ -244,6 +249,7 @@ def run():
         })
         # Discard each source recording and hypothesis before the next row.
         del inputs, logits, token_ids, control, hypothesis
+    run.phase = "aggregate-calibration"
     report = summarize_controls(observations)
     report["recognizer_model"] = MODEL_ID
     report["recognizer_revision"] = revision
@@ -263,6 +269,7 @@ def main():
     target = Path(options.report)
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
+        run.phase = "startup"
         result = run()
         status = 0
     except Exception as exc:
@@ -271,6 +278,7 @@ def main():
         result = {
             "evaluation": "PASHTO_PUBLIC_CONTROL_FAILED_NO_VOICE_SCORING",
             "error_type": type(exc).__name__,
+            "failed_stage": getattr(run, "phase", "not-started"),
             "recognizer_model": MODEL_ID,
             "recognizer_passed_exploratory_control": False,
             "generated_voice_scoring_executed": False,
