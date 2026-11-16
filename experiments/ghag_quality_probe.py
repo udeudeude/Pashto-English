@@ -192,28 +192,35 @@ def run(reference_wav, generated_wav, output, model_name=ASR_MODEL, control_tran
     result["recognizer_load_seconds"] = round(time.monotonic() - loaded, 3)
     result["torch_version"] = torch.__version__
     base_text, base_metrics = recognize(model, paths[0])
-    synthetic_text, synthetic_metrics = recognize(model, paths[1])
     result["reference_calibration"] = {
         **compare_text(reference_transcript, base_text), **base_metrics,
         "source": "FLEURS_ps_af_validation_row_0",
     }
-    result["ghag_generated"] = {
-        **compare_text(EXPECTED_INPUT, synthetic_text), **synthetic_metrics,
-        "source": "Ghag_original_weights_human_reference_UNVERIFIED_cleaner",
-    }
-    if espeak_wav is not None:
-        espeak_text, espeak_metrics = recognize(model, Path(espeak_wav))
-        result["espeak_generated"] = {
-            **compare_text(EXPECTED_INPUT, espeak_text), **espeak_metrics,
-            "source": "BUNDLED_ESPEAK_NG_PASHTO_VOICE",
-            "pronunciation_verified": False,
-        }
-    # This threshold merely screens obviously weak recognition controls; it
-    # never converts an automated score into verified pronunciation.
+    # A recognizer failing on genuine Pashto cannot judge either synthetic
+    # voice. Fail closed BEFORE scoring Ghag or the eSpeak control to avoid
+    # presenting uncalibrated error rates as a comparative benchmark.
     result["asr_control_usable_for_exploration"] = (
         result["reference_calibration"]["character_error_rate"] <= 0.35
         and result["reference_calibration"]["detected_language"] == "ps"
     )
+    if result["asr_control_usable_for_exploration"]:
+        synthetic_text, synthetic_metrics = recognize(model, paths[1])
+        result["ghag_generated"] = {
+            **compare_text(EXPECTED_INPUT, synthetic_text), **synthetic_metrics,
+            "source": "Ghag_original_weights_human_reference_UNVERIFIED_cleaner",
+        }
+        if espeak_wav is not None:
+            espeak_text, espeak_metrics = recognize(model, Path(espeak_wav))
+            result["espeak_generated"] = {
+                **compare_text(EXPECTED_INPUT, espeak_text), **espeak_metrics,
+                "source": "BUNDLED_ESPEAK_NG_PASHTO_VOICE",
+                "pronunciation_verified": False,
+            }
+    else:
+        result["generated_evaluation_skipped"] = (
+            "Genuine Pashto reference failed ASR calibration; "
+            "neither Ghag nor eSpeak was scored."
+        )
     result["interpretation"] = (
         "Calibration control passed a predeclared exploratory threshold; "
         "Ghag and eSpeak recognition scores (if present) remain imperfect "
