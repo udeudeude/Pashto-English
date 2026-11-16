@@ -1057,3 +1057,78 @@ test('tapping second voice speaks Pashto and keeps the original translation',asy
  await expect(page.locator('#result')).toHaveText('سلام');
  await page.evaluate(()=>window.pashtoVoice.stop());
 });
+
+
+test('new conversation aborts the previous translation request without retrying it',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const originalFetch=window.fetch;
+  const calls=[],spoken=[];
+  window.pashtoVoice={unlock(){},stop(){},speak(text){spoken.push(text);return Promise.resolve({played:true})}};
+  window.fetch=(url,options={})=>{
+   if(!String(url).startsWith('https://api.mymemory.translated.net/'))
+    return originalFetch(url,options);
+   const q=new URL(url).searchParams.get('q');
+   const call={q,aborted:false};
+   calls.push(call);
+   if(q==='Old request.')return new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>{
+     call.aborted=true;
+     reject(new DOMException('aborted','AbortError'));
+    },{once:true});
+   });
+   return Promise.resolve({ok:true,json:async()=>({
+    responseStatus:200,responseData:{translatedText:'اوبه'}
+   })});
+  };
+  try{
+   const old=window.pashtoApp.demo('Old request.','en');
+   const current=window.pashtoApp.demo('I need water.','en');
+   const finished=await Promise.all([old,current]);
+   return {calls,spoken,finished,translated:document.getElementById('result').textContent,
+    original:document.getElementById('original').textContent,
+    replayDisabled:document.getElementById('replay').disabled};
+  }finally{window.fetch=originalFetch}
+ });
+ expect(result.calls).toEqual([{q:'Old request.',aborted:true},
+  {q:'I need water.',aborted:false}]);
+ expect(result.finished).toEqual([false,true]);
+ expect(result.spoken).toEqual(['اوبه']);
+ expect(result.translated).toBe('اوبه');
+ expect(result.original).toBe('I need water.');
+ expect(result.replayDisabled).toBe(false);
+});
+
+test('backgrounding during translation aborts its request without speaking or retrying',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const originalFetch=window.fetch;
+  let requests=0,aborted=0,spoken=0;
+  window.pashtoVoice={unlock(){},stop(){},speak(){spoken++;return Promise.resolve()}};
+  window.fetch=(url,options={})=>{
+   if(!String(url).startsWith('https://api.mymemory.translated.net/'))
+    return originalFetch(url,options);
+   requests++;
+   return new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>{
+     aborted++;reject(new DOMException('cancelled','AbortError'));
+    },{once:true});
+   });
+  };
+  try{
+   const pending=window.pashtoApp.demo('Please help.','en');
+   Object.defineProperty(document,'hidden',{configurable:true,value:true});
+   document.dispatchEvent(new Event('visibilitychange'));
+   const finished=await pending;
+   return {requests,aborted,spoken,finished,
+    replayDisabled:document.getElementById('replay').disabled,
+    translated:document.getElementById('result').textContent,
+    status:document.getElementById('status').textContent};
+  }finally{window.fetch=originalFetch}
+ });
+ expect(result.requests).toBe(1);
+ expect(result.aborted).toBe(1);
+ expect(result.spoken).toBe(0);
+ expect(result.finished).toBe(false);
+ expect(result.replayDisabled).toBe(true);
+ expect(result.translated).toBe('…');
+ expect(result.status).toContain('Translation stopped');
+});
