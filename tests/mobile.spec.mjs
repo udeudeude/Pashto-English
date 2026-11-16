@@ -1057,3 +1057,27 @@ test('tapping second voice speaks Pashto and keeps the original translation',asy
  await expect(page.locator('#result')).toHaveText('سلام');
  await page.evaluate(()=>window.pashtoVoice.stop());
 });
+
+test('stalled Pashto device playback restores local voice in mobile browsers',async({page})=>{
+ // A device may signal start and then never signal either end or error.
+ // Advance the browser clock instead of waiting for the real watchdog.
+ await page.clock.install();
+ await page.evaluate(()=>{
+   window.SpeechSynthesisUtterance=class{constructor(text){this.text=text}};
+   window.speechSynthesis.getVoices=()=>[{lang:'ps-AF',localService:true,name:'Local Pashto'}];
+   window.speechSynthesis.cancel=()=>{};
+   window.speechSynthesis.speak=utterance=>queueMicrotask(()=>utterance.onstart?.());
+   const result=document.getElementById('result');
+   result.setAttribute('lang','ps');
+   result.textContent='سلام';
+   document.getElementById('replay').disabled=false;
+   window.pashtoVoiceChoice.refresh();
+ });
+ await page.locator('#voice-device').click();
+ await expect(page.locator('#voice-device')).toHaveAttribute('aria-pressed','true');
+ await page.evaluate(()=>Promise.resolve());
+ await page.clock.fastForward(60_000);
+ await expect(page.locator('#voice-local')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('#result')).toHaveText('سلام');
+ await page.evaluate(()=>window.pashtoVoice.stop());
+});
