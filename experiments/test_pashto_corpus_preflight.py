@@ -2,7 +2,9 @@
 import io
 import json
 import tarfile
+import tempfile
 import unittest
+from pathlib import Path
 
 from pashto_corpus_preflight import audit, flac_header
 
@@ -113,6 +115,15 @@ class CorpusPreflightTests(unittest.TestCase):
                                   './audio/two.flac': fake_flac(22050, 2, 66150)})
         self.assertEqual(result['flac_header_count'], 2)
         self.assertTrue(result['all_files_mapped_once'])
+
+    def test_archive_path_interface_without_audio_extraction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive_path = Path(directory) / 'licensed-archive.tar.gz'
+            archive_path.write_bytes(tar_bytes(self.clips).getvalue())
+            before = sorted(item.name for item in Path(directory).iterdir())
+            report = audit(str(archive_path), dataset_id=BOOK)
+            self.assertEqual(report['flac_header_count'], 2)
+            self.assertEqual(before, sorted(item.name for item in Path(directory).iterdir()))
 
     def test_tsv_manifest(self):
         files = dict(self.clips)
