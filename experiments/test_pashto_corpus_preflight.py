@@ -96,6 +96,10 @@ class CorpusPreflightTests(unittest.TestCase):
             with self.subTest(data=data[:4]), self.assertRaises(ValueError):
                 audit(tar_bytes({'audio/clip.flac': data}), dataset_id=BOOK)
 
+    def test_truncated_header_is_a_clean_rejection(self):
+        with self.assertRaisesRegex(ValueError, 'STREAMINFO'):
+            flac_header(b'fLaC', 42)
+
     def test_bounds_and_allowlist(self):
         with self.assertRaisesRegex(ValueError, 'allowlist'):
             audit(tar_bytes(self.clips), dataset_id='some-other-id')
