@@ -141,17 +141,51 @@ class PashtoAsrControlTests(unittest.TestCase):
             AutoModelForCTC=object,
             AutoProcessor=SimpleNamespace(from_pretrained=refuse_weights))
         fake_torch = SimpleNamespace(set_num_threads=lambda _: None)
-        with patch.dict(sys.modules, {
-                "huggingface_hub": fake_hub,
-                "transformers": fake_trans,
-                "torch": fake_torch}):
-            with self.assertRaisesRegex(RuntimeError, "before model download"):
-                probe.run()
+        fetched = []
+        def fake_control(index):
+            fetched.append(index)
+            return {"row_index": index}
+        with patch.object(probe, "fetch_control", side_effect=fake_control):
+            with patch.dict(sys.modules, {
+                    "huggingface_hub": fake_hub,
+                    "transformers": fake_trans,
+                    "torch": fake_torch}):
+                with self.assertRaisesRegex(RuntimeError, "before model download"):
+                    probe.run()
         self.assertEqual(called, [(
             probe.MODEL_ID,
             {"expand": ["sha", "cardData", "pipeline_tag"], "token": False}
         )])
+        self.assertEqual(fetched, [0, 1, 2])
         self.assertEqual(probe.run.phase, "model-processor-load")
+
+    def test_public_source_failure_prevents_all_model_downloads(self):
+        calls = []
+        good = SimpleNamespace(sha="b" * 40,
+                               card_data={"license": "apache-2.0"},
+                               pipeline_tag="automatic-speech-recognition")
+        fake_hub = SimpleNamespace(
+            HfApi=lambda: SimpleNamespace(model_info=lambda *a, **k: good))
+        def no_download(*_args, **_kwargs):
+            self.fail("Never download recognizer weights when public audio is unavailable")
+        fake_trans = SimpleNamespace(
+            AutoModelForCTC=SimpleNamespace(from_pretrained=no_download),
+            AutoProcessor=SimpleNamespace(from_pretrained=no_download))
+        fake_torch = SimpleNamespace(set_num_threads=lambda _: None)
+        def offline_control(index):
+            calls.append(index)
+            if index == 1:
+                raise ConnectionError("transient public dataset failure")
+            return {"row_index": index}
+        with patch.object(probe, "fetch_control", side_effect=offline_control):
+            with patch.dict(sys.modules, {
+                    "huggingface_hub": fake_hub,
+                    "transformers": fake_trans,
+                    "torch": fake_torch}):
+                with self.assertRaises(ConnectionError):
+                    probe.run()
+        self.assertEqual(calls, [0, 1])
+        self.assertEqual(probe.run.phase, "public-test-audio-row-1")
 
     def test_fetch_control_uses_test_split_and_trusted_audio(self):
         wav = synthetic_wav()
