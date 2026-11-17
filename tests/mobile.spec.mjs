@@ -721,6 +721,68 @@ test('English microphone stops on second tap and immediately after a final recog
 });
 
 
+test('English recognition ending without a transcript tells the person to retry',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iOS uses owned clip recording, not Web Speech');
+ await page.addInitScript(()=>{
+  window.SpeechRecognition=window.webkitSpeechRecognition=class{
+   constructor(){
+    window.englishEndSessions=window.englishEndSessions||[];
+    window.englishEndSessions.push(this);
+   }
+   start(){}
+   abort(){this.aborted=true}
+   stop(){this.stopped=true}
+  };
+ });
+ await page.reload();
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','true');
+ await page.evaluate(()=>window.englishEndSessions[0].onend());
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
+ await expect(page.locator('#status')).toContainText('Speech was not recognized');
+ await expect(page.locator('#status')).toHaveAttribute('data-status-kind','error');
+ await expect(page.locator('#result')).toHaveText('Translation unavailable / ژباړه نشته');
+ await expect(page.locator('#replay')).toBeDisabled();
+ const ended=await page.evaluate(()=>({
+  aborted:window.englishEndSessions[0].aborted,
+  onresult:window.englishEndSessions[0].onresult,
+  onend:window.englishEndSessions[0].onend,
+ }));
+ expect(ended).toEqual({aborted:true,onresult:null,onend:null});
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','true');
+ expect(await page.evaluate(()=>window.englishEndSessions.length)).toBe(2);
+});
+
+test('A late browser end event cannot erase an already recognized translation',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iOS uses owned clip recording, not Web Speech');
+ await page.addInitScript(()=>{
+  window.SpeechRecognition=window.webkitSpeechRecognition=class{
+   constructor(){window.englishFinishedRecognition=this}
+   start(){}
+   abort(){this.aborted=true}
+   stop(){}
+  };
+ });
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({
+  status:200,contentType:'application/json',
+  body:JSON.stringify({responseStatus:200,responseData:{translatedText:'کتاب'}})
+ }));
+ await page.reload();
+ await page.locator('#en').click();
+ await page.evaluate(()=>{
+  const recognizer=window.englishFinishedRecognition;
+  const oldEnd=recognizer.onend;
+  recognizer.onresult({results:[[{transcript:'book'}]]});
+  // Simulate an already-queued callback from the browser event loop.
+  oldEnd();
+ });
+ await expect(page.locator('#result')).toHaveText('کتاب');
+ await expect(page.locator('#original')).toHaveText('book');
+ await expect(page.locator('#replay')).toBeEnabled();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
+});
+
 test('iPhone English recognition never invokes Web Speech and uses owned local tracks',async({page},testInfo)=>{
  test.skip(testInfo.project.name!=='ios-webkit','iPhone-specific input route');
  const result=await page.evaluate(()=>({
