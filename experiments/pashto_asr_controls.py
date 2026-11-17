@@ -218,6 +218,14 @@ def run():
     model_info = HfApi().model_info(
         MODEL_ID, expand=["sha", "cardData", "pipeline_tag"], token=False)
     revision, license_id = validated_model_metadata(model_info)
+    # Public data retrieval can fail before inference (for example HTTP 503).
+    # Validate all three authentic speech controls BEFORE downloading ~300M
+    # model parameters. A source failure must not waste model downloads or
+    # accidentally turn an incomplete control set into a speech-quality claim.
+    controls = []
+    for row_index in CONTROL_ROWS:
+        run.phase = "public-test-audio-row-" + str(row_index)
+        controls.append(fetch_control(row_index))
     torch.set_num_threads(2)
     loaded = time.monotonic()
     run.phase = "model-processor-load"
@@ -230,9 +238,11 @@ def run():
     model.eval()
     load_seconds = round(time.monotonic() - loaded, 3)
     observations = []
-    for row_index in CONTROL_ROWS:
-        run.phase = "public-test-audio-row-" + str(row_index)
-        control = fetch_control(row_index)
+    while controls:
+        # Consume each control exactly once, releasing its audio array after
+        # decoding rather than retaining all recordings to the end of the run.
+        control = controls.pop(0)
+        row_index = control["row_index"]
         run.phase = "model-decode-row-" + str(row_index)
         started = time.monotonic()
         inputs = processor(control["samples"], sampling_rate=16000,
@@ -249,7 +259,7 @@ def run():
             "audio_sha256": control["audio_sha256"],
             "seconds": duration,
         })
-        # Discard each source recording and hypothesis before the next row.
+        # Release each decoded public recording and transient hypothesis.
         del inputs, logits, token_ids, control, hypothesis
     run.phase = "aggregate-calibration"
     report = summarize_controls(observations)
