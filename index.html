@@ -390,7 +390,10 @@ function start(lang){
  };
  rec.onend=()=>{
   if(active!==rec)return;
+  // A browser recognition session can end normally without any transcript.
+  // Never leave the controls falsely indicating that the microphone is live.
   stopBrowserRecognition(rec);
+  fail('Speech was not recognized. Tap the microphone to try again. / خبرې ونه پېژندل شوې. د بیا هڅې لپاره مایکروفون کېکاږئ.',session);
  };
  try{
   rec.start();
