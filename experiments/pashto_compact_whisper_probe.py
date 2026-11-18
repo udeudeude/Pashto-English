@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""CPU-only public Pashto control for a compact Whisper model.
+
+This is a research comparison, NOT an on-device or translation accuracy claim.
+Public CC BY 4.0 FLEURS Pashto test speech stays ephemeral, and GitHub receives
+only numerical error rates, SHA-256 provenance, license and resource measures.
+"""
+import argparse
+import json
+from pathlib import Path
+import resource
+import sys
+import time
+
+from fleurs_parquet_controls import fetch_three_controls
+from pashto_asr_controls import (
+    summarize_controls, validated_model_metadata, MODEL_LICENSE,
+    CONTROL_ROWS,
+)
+
+class VerifiedWhisperFrontend:
+    """Exactly the published fast tokenizer and 80-mel feature extractor.
+
+    Transformers 4.46.3 WhisperProcessor erroneously refuses the fast class
+    because it insists on an instance of the slow WhisperTokenizer, whose
+    vocab.json and merges.txt are NOT present in this public checkpoint.
+    Forward only the audio features and text decoding actually required.
+    """
+    def __init__(self, feature_extractor, tokenizer):
+        self.feature_extractor = feature_extractor
+        self.tokenizer = tokenizer
+
+    def __call__(self, audio, **kwargs):
+        return self.feature_extractor(audio, **kwargs)
+
+    def batch_decode(self, tokens, **kwargs):
+        return self.tokenizer.batch_decode(tokens, **kwargs)
+
+
+MODEL_ID = "ihanif/exp_008b_base_cv24_vanilla_no_aug"
+EXPECTED_PUBLIC_SHARD_SHA256 = "f56d12655d4d4f09b6b1fa5228b90e2b4cb52a4485b540250509b16127193bed"
+
+
+def verify_source(controls, source):
+    """Require exactly the same three authentic, independently checked controls."""
+    if not isinstance(controls, list) or not isinstance(source, dict):
+        raise ValueError("Missing public control source")
+    if [c.get("row_index") for c in controls] != list(CONTROL_ROWS):
+        raise ValueError("Unapproved authentic control indices")
+    if source.get("source_parquet_sha256") != EXPECTED_PUBLIC_SHARD_SHA256:
+        raise ValueError("Official public shard changed; reassess source integrity")
+    if source.get("dataset") != "google/fleurs" or source.get("configuration") != "ps_af" \
+       or source.get("split") != "test" or source.get("license") != "cc-by-4.0":
+        raise ValueError("Incorrect public Pashto data or license")
+    hashes = [c.get("audio_sha256") for c in controls]
+    if len(set(hashes)) != 3:
+        raise ValueError("Duplicate or missing authentic speech recordings")
+    return source
+
+
+def recognize(loaded, processor, signal):
+    """Explicit Pashto transcription, bounded generation, not language guessing."""
+    import torch
+    inputs = processor(signal, sampling_rate=16000, return_tensors="pt")
+    features = getattr(inputs, "input_features", None)
+    if features is None:
+        raise ValueError("Whisper feature extractor returned no mel spectrogram")
+    with torch.inference_mode():
+        generated = loaded.generate(
+            input_features=features, language="pashto", task="transcribe",
+            do_sample=False, num_beams=1, max_new_tokens=160,
+        )
+    text = processor.batch_decode(generated, skip_special_tokens=True)
+    if not isinstance(text, list) or len(text) != 1 or not isinstance(text[0], str):
+        raise ValueError("Invalid model transcription output")
+    return text[0]
+
+
+def run():
+    import torch
+    from transformers import (WhisperFeatureExtractor, WhisperTokenizerFast,
+                              AutoModelForSpeechSeq2Seq)
+    import transformers
+    from huggingface_hub import HfApi
+
+    run.phase = "public-model-metadata"
+    model_info = HfApi().model_info(
+        MODEL_ID, expand=["sha", "cardData", "pipeline_tag"], token=False)
+    revision, license_id = validated_model_metadata(model_info)
+    if license_id != MODEL_LICENSE:
+        raise ValueError("Recognizer model is no longer public Apache-2.0")
+
+    # Inspect the model's public frontend BEFORE downloading the 402 MB
+    # authentic human-speech shard. Most packaging/import failures can be
+    # diagnosed without acquiring even transient recordings.
+    # The v5.2-trained repository contains tokenizer.json, but omits
+    # vocab.json/merges.txt while incorrectly asking Transformers 4.46
+    # to instantiate the slow WhisperTokenizer. That calls open(None)
+    # in tokenization_whisper.py. Select the fast tokenizer explicitly;
+    # construct feature extraction from the model's published 16-kHz,
+    # 80-mel, 400-FFT, 160-hop settings instead of falling back to an
+    # unrelated checkpoint or inventing vocabulary files.
+    run.phase = "compact-fast-tokenizer-load"
+    started = time.monotonic()
+    try:
+        tokenizer = WhisperTokenizerFast.from_pretrained(
+            MODEL_ID, revision=revision, trust_remote_code=False, token=False)
+        if tokenizer.convert_tokens_to_ids("<|ps|>") == tokenizer.unk_token_id:
+            raise ValueError("Pashto language token is missing from candidate vocabulary")
+        extractor = WhisperFeatureExtractor(
+            feature_size=80, sampling_rate=16000, hop_length=160,
+            n_fft=400, n_samples=480000, return_attention_mask=False)
+        processor = VerifiedWhisperFrontend(extractor, tokenizer)
+    except (ImportError, TypeError, ValueError) as error:
+        # Only report fixed dependency categories and redacted call-frame
+        # names, NEVER raw exception text, URLs or local filesystem paths.
+        import traceback
+        from pathlib import PurePath
+        message = str(error).lower()
+        names = ("tiktoken", "sentencepiece", "librosa", "soxr",
+                 "protobuf", "tokenizers", "torchvision", "accelerate",
+                 "feature_extractor", "whisper", "processor")
+        category = next((name for name in names if name in message), "unknown")
+        frames = traceback.extract_tb(error.__traceback__)[-4:]
+        run.processor_error_frames = [
+            {"module": PurePath(frame.filename).name[:70],
+             "function": frame.name[:70], "line": frame.lineno}
+            for frame in frames
+        ]
+        run.phase = "compact-processor-" + type(error).__name__ + "-" + category
+        raise
+    run.phase = "authentic-external-test-source"
+    controls, source = fetch_three_controls()
+    verify_source(controls, source)
+    torch.set_num_threads(2)
+
+    run.phase = "compact-safetensors-weight-load"
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        MODEL_ID, revision=revision, trust_remote_code=False,
+        use_safetensors=True, token=False)
+    model.eval()
+    load_seconds = round(time.monotonic() - started, 3)
+
+    observations = []
+    while controls:
+        example = controls.pop(0)
+        index = example["row_index"]
+        run.phase = "compact-model-decode-row-" + str(index)
+        started = time.monotonic()
+        transcript = recognize(model, processor, example["samples"])
+        observations.append({
+            "row_index": index,
+            "reference": example["reference"],
+            "hypothesis": transcript,
+            "audio_sha256": example["audio_sha256"],
+            "seconds": time.monotonic() - started,
+        })
+        del example, transcript
+
+    run.phase = "aggregate-calibration"
+    report = summarize_controls(observations)
+    report.update({
+        "recognizer_model": MODEL_ID,
+        "recognizer_revision": revision,
+        "recognizer_license": license_id,
+        "training_dataset_claimed_in_publications": "Common Voice Pashto 24",
+        "training_dataset_verified_from_model_card": False,
+        "external_test_dataset": "Google FLEURS ps_af test",
+        "cross_domain_status": "candidate_only_not_independently_proven",
+        "fleurs_source_parquet_sha256": source["source_parquet_sha256"],
+        "model_load_seconds": load_seconds,
+        "peak_process_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "cpu_torch_version": torch.__version__,
+        "transformers_version": transformers.__version__,
+        "mobile_browser_inference_verified": False,
+        "generated_voice_scoring_executed": False,
+        "comparison_to_other_models_not_statistically_validated": True,
+    })
+    return report
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--report", required=True)
+    args = parser.parse_args()
+    path = Path(args.report)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        run.phase = "startup"
+        run.processor_error_frames = []
+        result = run()
+        status = 0
+    except Exception as error:
+        # Never log text, source metadata messages, URLs, model output or voice.
+        result = {
+            "evaluation": "PUBLIC_COMPACT_PASHTO_MODEL_UNVERIFIED",
+            "failed_stage": getattr(run, "phase", "startup"),
+            "error_type": type(error).__name__,
+            "public_processor_debug_frames": getattr(run, "processor_error_frames", []),
+            "recognizer_model": MODEL_ID,
+            "recognizer_passed_exploratory_control": False,
+            "generated_voice_scoring_executed": False,
+            "mobile_browser_inference_verified": False,
+        }
+        status = 1
+    path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8")
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return status
+
+
+if __name__ == "__main__":
+    sys.exit(main())
