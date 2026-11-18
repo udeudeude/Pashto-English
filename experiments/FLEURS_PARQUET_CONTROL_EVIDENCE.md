@@ -26,6 +26,21 @@ Hugging Face's [official Parquet dataset API](https://huggingface.co/docs/datase
 - The **report contains no actual audio or transcripts**. The file temporarily downloaded on the runner is removed when the job ends.
 - Recognition accuracy, device runtime, listener intelligibility and Ghag's training-cleaner parity remain **unverified** by this source preflight. The separate live recognizer job must produce real measured error rates before any interpretation.
 
+
+## Measured independent recognizer inference: PASSED first exploratory gate
+
+[Successful full-model workflow 44225743400](https://github.com/udeudeude/Pashto-English/actions/runs/44225743400) at code/workflow commit `67eefd60fd1c94c4b2bb66fe7228516cc2bc98b5`:
+
+- Offline: **7/7 Parquet source and audio tests**, **17/17 recognizer-control tests**. Genuine data preflight passed and the isolated CPU recognizer loaded and decoded all three source-checked Pashto clips.
+- Model `ihanif/wav2vec2-xls-r-300m-pashto`, exact resolved revision **`9ec5ce8ba20fe3975669fce8b622c74baf46a7c5`**, public model card **Apache-2.0**, runtime PyTorch 2.5.1 CPU and Transformers 4.46.3.
+- Actual pooled **character error rate 0.2565** and **word error rate 0.5397** on `ps_af` test rows 0–2. Per-row character error rates: **0.3084, 0.3571, 0.1196**. Per-row word error rates: **0.6000, 0.7059, 0.3333**.
+- Each human-speech hypothesis had **100% Arabic-script letters** by the predeclared script measure. This is not proof that a transcript contains correct Pashto.
+- Initial model loading took **7.861 seconds** on the GitHub CPU runner; decode times **5.187, 1.720, 2.118 seconds** for three different recordings. Not a device or mobile memory/performance benchmark.
+- Exact public shard SHA-256 matched the previous source-only preflight; only numerical/calibration and cryptographic provenance JSON was retained as a GitHub artifact, not audio, speech text, model weights or private material.
+- **`recognizer_passed_exploratory_control=true`**, **`generated_voice_scoring_executed=false`**, **`pronunciation_verified=false`**. The narrow first gate has passed, not the cross-domain or human evaluation gates.
+
+**Interpretation:** This is the first measured authentic-Pashto calibration after zero-shot Whisper failed. It independently reproduces useful, but still substantial, error on a tiny FLEURS sample from the recognizer's own dataset family. It cannot yet rank neural Ghag versus eSpeak, justify model deployment or establish reliable conversational transcription. The published model requires approximately **1.26 GB of safetensors weights** (before its processor and runtime), so it is not a drop-in offline iPhone solution.
+
 ## Next evidence gates
 
 1. Confirm the full CPU recognition model succeeds with exact pinned weights and safely aggregate genuine Pashto calibration error rates. A failure remains a failure; do not assert model quality from its authors' published aggregate benchmark.
