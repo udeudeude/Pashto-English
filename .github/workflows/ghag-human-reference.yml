@@ -44,7 +44,7 @@ jobs:
           transcript=base/'fleurs-reference-transcript.txt'
           manifest=base/'fleurs-reference-provenance.json'
           result=fetch_reference(wav, transcript_path=transcript)
-          manifest.write_text(json.dumps(result, indent=2)+'\\n', encoding='utf-8')
+          manifest.write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
           verified=verify_preflight_reference(wav, transcript, manifest)
           # Print hashes/metrics only; never log the actual public recording or text.
           print(json.dumps({
