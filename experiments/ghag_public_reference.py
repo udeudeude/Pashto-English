@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 import math
+import unicodedata
 from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 from urllib.error import HTTPError
@@ -91,6 +92,23 @@ def validate_clip(samples, sample_rate):
                  "peak": round(peak, 6), "rms": round(rms, 6)}
 
 
+def validated_pashto_transcript(text):
+    """Check source script and bounds, NOT linguistic correctness or speaker identity."""
+    if not isinstance(text, str) or not 1 <= len(text.strip()) <= 500:
+        raise ValueError("Public real-speech control has no bounded transcript")
+    text = text.strip()
+    letters = [c for c in text if unicodedata.category(c).startswith("L")]
+    arabic_letters = sum(
+        0x0600 <= ord(c) <= 0x06FF
+        or 0x0750 <= ord(c) <= 0x077F
+        or 0x08A0 <= ord(c) <= 0x08FF
+        for c in letters
+    )
+    if len(letters) < 3 or arabic_letters * 5 < len(letters) * 4:
+        raise ValueError("Public real-speech control is not predominantly Pashto-script text")
+    return text
+
+
 def fetch_reference(output_path, *, row_idx=0, opener=urlopen, transcript_path=None):
     """Download just one public example via the Hugging Face dataset viewer.
 
@@ -117,13 +135,11 @@ def fetch_reference(output_path, *, row_idx=0, opener=urlopen, transcript_path=N
     row = item["row"]
     # Optional ephemeral control transcript for an *independent* ASR check.
     # It is never returned in metadata or added to GitHub workflow artifacts.
+    transcript_text = None
     if transcript_path is not None:
-        text = row.get("transcription")
-        if not isinstance(text, str) or not 1 <= len(text.strip()) <= 500:
-            raise ValueError("Public real-speech control has no bounded transcript")
-        transcript_file = Path(transcript_path)
-        transcript_file.parent.mkdir(parents=True, exist_ok=True)
-        transcript_file.write_text(text.strip() + "\n", encoding="utf-8")
+        transcript_text = validated_pashto_transcript(row.get("transcription"))
+        if Path(transcript_path).resolve() == Path(output_path).resolve():
+            raise ValueError("Reference WAV and transcript must use separate paths")
     audio_url = reference_audio_url(row)
     original_bytes = bounded_response(audio_url, MAX_AUDIO_BYTES, opener)
     import numpy as np
@@ -137,8 +153,18 @@ def fetch_reference(output_path, *, row_idx=0, opener=urlopen, transcript_path=N
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     sf.write(str(output_path), mono, 16000, subtype="PCM_16")
+    # Only persist text AFTER source audio has been decoded and validated.
+    # Bind it cryptographically to the reused reference manifest; a mismatched
+    # transcript could falsely calibrate a speech recognizer against another clip.
+    transcript_hash = None
+    if transcript_text is not None:
+        transcript_bytes = (transcript_text + "\n").encode("utf-8")
+        transcript_file = Path(transcript_path)
+        transcript_file.parent.mkdir(parents=True, exist_ok=True)
+        transcript_file.write_bytes(transcript_bytes)
+        transcript_hash = hashlib.sha256(transcript_bytes).hexdigest()
     # Keep speaker text out of reports. Preserve immutable audio file hashes.
-    return {
+    metadata = {
         "dataset": DATASET, "config": CONFIG, "split": SPLIT,
         "row_index": row_idx, "license": LICENSE,
         "attribution": "FLEURS (Conneau et al., 2022), Google; CC BY 4.0",
@@ -153,6 +179,9 @@ def fetch_reference(output_path, *, row_idx=0, opener=urlopen, transcript_path=N
         "speaker_identity_verified": False,
         "training_cleaner_parity_verified": False,
     }
+    if transcript_hash is not None:
+        metadata["control_transcript_sha256"] = transcript_hash
+    return metadata
 
 def verify_preflight_reference(reference_wav, transcript_path, manifest_path):
     """Reuse a validated FLEURS recording without another flaky viewer request.
@@ -175,12 +204,24 @@ def verify_preflight_reference(reference_wav, transcript_path, manifest_path):
     ):
         raise ValueError("Preflight public speaker reference has invalid provenance")
     reference_wav = Path(reference_wav)
+    if not reference_wav.is_file() or reference_wav.stat().st_size > MAX_AUDIO_BYTES:
+        raise ValueError("Preflight public reference missing or exceeds size bound")
     audio_digest = hashlib.sha256(reference_wav.read_bytes()).hexdigest()
     if audio_digest != manifest.get("reference_wav_sha256"):
         raise ValueError("Preflight public reference checksum mismatch")
-    text = Path(transcript_path).read_text(encoding="utf-8").strip()
-    if not 1 <= len(text) <= 500:
+    transcript_file = Path(transcript_path)
+    if not transcript_file.is_file() or transcript_file.stat().st_size > 2048:
         raise ValueError("Preflight public reference transcript is missing or too long")
+    transcript_bytes = transcript_file.read_bytes()
+    try:
+        validated_pashto_transcript(transcript_bytes.decode("utf-8"))
+    except (UnicodeError, ValueError) as error:
+        raise ValueError("Preflight public reference transcript is invalid") from error
+    expected_hash = manifest.get("control_transcript_sha256")
+    if (not isinstance(expected_hash, str) or len(expected_hash) != 64
+            or any(c not in "0123456789abcdef" for c in expected_hash)
+            or hashlib.sha256(transcript_bytes).hexdigest() != expected_hash):
+        raise ValueError("Preflight public reference transcript checksum mismatch")
     import soundfile as sf
     samples, rate = sf.read(str(reference_wav), dtype="float32")
     if rate != 16000:
