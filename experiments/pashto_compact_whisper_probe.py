@@ -78,14 +78,23 @@ def run():
     try:
         processor = AutoProcessor.from_pretrained(
             MODEL_ID, revision=revision, trust_remote_code=False, token=False)
-    except ImportError as error:
-        # Only report fixed dependency categories, NEVER a raw upstream
-        # exception which can contain paths, URLs or private sample text.
+    except (ImportError, TypeError, ValueError) as error:
+        # Only report fixed dependency categories and redacted call-frame
+        # names, NEVER raw exception text, URLs or local filesystem paths.
+        import traceback
+        from pathlib import PurePath
         message = str(error).lower()
         names = ("tiktoken", "sentencepiece", "librosa", "soxr",
-                 "protobuf", "tokenizers", "torchvision", "accelerate")
+                 "protobuf", "tokenizers", "torchvision", "accelerate",
+                 "feature_extractor", "whisper", "processor")
         category = next((name for name in names if name in message), "unknown")
-        run.phase = "compact-processor-missing-" + category
+        frames = traceback.extract_tb(error.__traceback__)[-4:]
+        run.processor_error_frames = [
+            {"module": PurePath(frame.filename).name[:70],
+             "function": frame.name[:70], "line": frame.lineno}
+            for frame in frames
+        ]
+        run.phase = "compact-processor-" + type(error).__name__ + "-" + category
         raise
     run.phase = "authentic-external-test-source"
     controls, source = fetch_three_controls()
@@ -153,6 +162,7 @@ def main():
             "evaluation": "PUBLIC_COMPACT_PASHTO_MODEL_UNVERIFIED",
             "failed_stage": getattr(run, "phase", "startup"),
             "error_type": type(error).__name__,
+            "public_processor_debug_frames": getattr(run, "processor_error_frames", []),
             "recognizer_model": MODEL_ID,
             "recognizer_passed_exploratory_control": False,
             "generated_voice_scoring_executed": False,
