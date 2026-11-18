@@ -1,5 +1,6 @@
 """Offline tests for the licensed, bounded FLEURS Pashto reference path."""
 import io
+import hashlib
 import json
 import math
 import tempfile
@@ -40,7 +41,7 @@ class ReferenceTests(unittest.TestCase):
         self.row = {"dataset": "google/fleurs", "config": "ps_af",
                     "split": "validation", "rows": [{"row_idx": 0, "row": {
                         "audio": [{"src": self.audio_url, "type": "audio/wav"}],
-                        "transcription": "Do not publish sample text or identity",
+                        "transcription": "دا یوه ازموینې جمله ده",
                     }}]}
 
     def fake_opener(self, req, timeout):
@@ -100,9 +101,12 @@ class ReferenceTests(unittest.TestCase):
                 Path(directory) / "reference.wav",
                 transcript_path=transcript, opener=self.fake_opener)
             self.assertEqual(transcript.read_text(encoding="utf-8"),
-                             "Do not publish sample text or identity\n")
-            self.assertNotIn("Do not publish sample text", str(metadata))
-            self.assertNotIn("transcript", str(metadata))
+                             "دا یوه ازموینې جمله ده\n")
+            self.assertNotIn("دا یوه ازموینې جمله ده", str(metadata))
+            self.assertEqual(
+                metadata["control_transcript_sha256"],
+                hashlib.sha256(transcript.read_bytes()).hexdigest(),
+            )
 
     def test_optional_public_control_rejects_missing_transcript(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -156,6 +160,7 @@ class ReferenceTests(unittest.TestCase):
             self.assertFalse(metadata["training_cleaner_parity_verified"])
             self.assertFalse(metadata["speaker_identity_verified"])
             self.assertNotIn("transcription", str(metadata))
+            self.assertNotIn("control_transcript_sha256", metadata)
             self.assertNotIn("audio.wav", metadata["reference_wav_sha256"])
 
     def test_rejects_wrong_row_or_dataset(self):
@@ -214,6 +219,60 @@ class ReferenceTests(unittest.TestCase):
             path.write_bytes(b"tampered WAV")
             with self.assertRaisesRegex(ValueError, "checksum"):
                 verify_preflight_reference(path, text, manifest)
+
+
+    def test_nonempty_wrong_transcript_is_rejected_even_with_valid_audio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = Path(tmp) / "reference.wav"
+            transcript = Path(tmp) / "transcript.txt"
+            manifest = Path(tmp) / "manifest.json"
+            metadata = fetch_reference(wav, transcript_path=transcript,
+                                       opener=self.fake_opener)
+            manifest.write_text(json.dumps(metadata), encoding="utf-8")
+            transcript.write_text("دا یوه بله جمله ده\\n".replace("\\n", "\n"), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "transcript checksum mismatch"):
+                verify_preflight_reference(wav, transcript, manifest)
+            transcript.write_text("دا یوه ازموینې جمله ده\n", encoding="utf-8")
+            metadata.pop("control_transcript_sha256")
+            manifest.write_text(json.dumps(metadata), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "transcript checksum mismatch"):
+                verify_preflight_reference(wav, transcript, manifest)
+
+    def test_non_pashto_script_control_is_rejected_without_writing_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = Path(tmp) / "reference.wav"
+            transcript = Path(tmp) / "transcript.txt"
+            original = self.row["rows"][0]["row"]["transcription"]
+            self.row["rows"][0]["row"]["transcription"] = "This is not Pashto"
+            try:
+                with self.assertRaisesRegex(ValueError, "Pashto-script"):
+                    fetch_reference(wav, transcript_path=transcript,
+                                    opener=self.fake_opener)
+                self.assertFalse(wav.exists())
+                self.assertFalse(transcript.exists())
+            finally:
+                self.row["rows"][0]["row"]["transcription"] = original
+
+    def test_invalid_audio_does_not_leave_unvalidated_transcript(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            wav = Path(tmp) / "reference.wav"
+            transcript = Path(tmp) / "transcript.txt"
+            def bad_audio(req, timeout):
+                if req.full_url == self.audio_url:
+                    return FakeResponse(b"not an audio file", req.full_url)
+                return self.fake_opener(req, timeout)
+            with self.assertRaises(Exception):
+                fetch_reference(wav, transcript_path=transcript, opener=bad_audio)
+            self.assertFalse(transcript.exists())
+            self.assertFalse(wav.exists())
+
+    def test_transcript_must_not_overwrite_reference_waveform(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "same-file.wav"
+            with self.assertRaisesRegex(ValueError, "separate paths"):
+                fetch_reference(path, transcript_path=path, opener=self.fake_opener)
+            self.assertFalse(path.exists())
+
 
 
 if __name__ == "__main__":
