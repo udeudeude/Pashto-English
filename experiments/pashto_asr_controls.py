@@ -16,6 +16,7 @@ import sys
 import time
 import unicodedata
 from urllib.parse import urlencode
+from urllib.error import HTTPError, URLError
 
 from ghag_public_reference import (
     DATASET, CONFIG, VIEWER, MAX_JSON_BYTES, MAX_AUDIO_BYTES,
@@ -189,6 +190,38 @@ def fetch_control(row_index, *, loader=bounded_response):
     }
 
 
+def fetch_parquet_controls():
+    """Alternative official, checksum-verified FLEURS Parquet source, loaded lazily."""
+    from fleurs_parquet_controls import fetch_three_controls
+    return fetch_three_controls()
+
+
+def acquire_genuine_controls():
+    """Get three actual Pashto clips; fallback only on transport/viewer failure.
+
+    Never fall back on malformed, misidentified, non-Pashto or tampered content.
+    The alternative is the same official CC BY 4.0 dataset, *test* split,
+    and three indices. Do not count it as an independent linguistic domain.
+    """
+    controls = []
+    try:
+        for row_index in CONTROL_ROWS:
+            run.phase = "public-test-audio-row-" + str(row_index)
+            controls.append(fetch_control(row_index))
+        return controls, {
+            "retrieval_source": "official_fleurs_dataset_viewer",
+            "row_indices": list(CONTROL_ROWS),
+        }
+    except (HTTPError, URLError, TimeoutError, ConnectionError) as error:
+        if isinstance(error, HTTPError) and error.code not in (
+                404, 408, 429, 500, 502, 503, 504):
+            raise
+        # Discard the partial viewer results; never merge disparate sources.
+        controls.clear()
+        run.phase = "public-test-parquet-fallback"
+        return fetch_parquet_controls()
+
+
 def validated_model_metadata(info):
     """Require a verified public-model revision and explicit source license."""
     revision = getattr(info, "sha", None)
@@ -222,10 +255,7 @@ def run():
     # Validate all three authentic speech controls BEFORE downloading ~300M
     # model parameters. A source failure must not waste model downloads or
     # accidentally turn an incomplete control set into a speech-quality claim.
-    controls = []
-    for row_index in CONTROL_ROWS:
-        run.phase = "public-test-audio-row-" + str(row_index)
-        controls.append(fetch_control(row_index))
+    controls, source_evidence = acquire_genuine_controls()
     torch.set_num_threads(2)
     loaded = time.monotonic()
     run.phase = "model-processor-load"
@@ -263,6 +293,7 @@ def run():
         del inputs, logits, token_ids, control, hypothesis
     run.phase = "aggregate-calibration"
     report = summarize_controls(observations)
+    report["public_control_source_evidence"] = source_evidence
     report["recognizer_model"] = MODEL_ID
     report["recognizer_revision"] = revision
     report["recognizer_license"] = license_id
