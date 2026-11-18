@@ -721,6 +721,68 @@ test('English microphone stops on second tap and immediately after a final recog
 });
 
 
+test('English recognition ending without a transcript tells the person to retry',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iOS uses owned clip recording, not Web Speech');
+ await page.addInitScript(()=>{
+  window.SpeechRecognition=window.webkitSpeechRecognition=class{
+   constructor(){
+    window.englishEndSessions=window.englishEndSessions||[];
+    window.englishEndSessions.push(this);
+   }
+   start(){}
+   abort(){this.aborted=true}
+   stop(){this.stopped=true}
+  };
+ });
+ await page.reload();
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','true');
+ await page.evaluate(()=>window.englishEndSessions[0].onend());
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
+ await expect(page.locator('#status')).toContainText('Speech was not recognized');
+ await expect(page.locator('#status')).toHaveAttribute('data-status-kind','error');
+ await expect(page.locator('#result')).toHaveText('Translation unavailable / ژباړه نشته');
+ await expect(page.locator('#replay')).toBeDisabled();
+ const ended=await page.evaluate(()=>({
+  aborted:window.englishEndSessions[0].aborted,
+  onresult:window.englishEndSessions[0].onresult,
+  onend:window.englishEndSessions[0].onend,
+ }));
+ expect(ended).toEqual({aborted:true,onresult:null,onend:null});
+ await page.locator('#en').click();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','true');
+ expect(await page.evaluate(()=>window.englishEndSessions.length)).toBe(2);
+});
+
+test('A late browser end event cannot erase an already recognized translation',async({page},testInfo)=>{
+ test.skip(testInfo.project.name==='ios-webkit','iOS uses owned clip recording, not Web Speech');
+ await page.addInitScript(()=>{
+  window.SpeechRecognition=window.webkitSpeechRecognition=class{
+   constructor(){window.englishFinishedRecognition=this}
+   start(){}
+   abort(){this.aborted=true}
+   stop(){}
+  };
+ });
+ await page.route('https://api.mymemory.translated.net/**',route=>route.fulfill({
+  status:200,contentType:'application/json',
+  body:JSON.stringify({responseStatus:200,responseData:{translatedText:'کتاب'}})
+ }));
+ await page.reload();
+ await page.locator('#en').click();
+ await page.evaluate(()=>{
+  const recognizer=window.englishFinishedRecognition;
+  const oldEnd=recognizer.onend;
+  recognizer.onresult({results:[[{transcript:'book'}]]});
+  // Simulate an already-queued callback from the browser event loop.
+  oldEnd();
+ });
+ await expect(page.locator('#result')).toHaveText('کتاب');
+ await expect(page.locator('#original')).toHaveText('book');
+ await expect(page.locator('#replay')).toBeEnabled();
+ await expect(page.locator('#en')).toHaveAttribute('aria-pressed','false');
+});
+
 test('iPhone English recognition never invokes Web Speech and uses owned local tracks',async({page},testInfo)=>{
  test.skip(testInfo.project.name!=='ios-webkit','iPhone-specific input route');
  const result=await page.evaluate(()=>({
@@ -1056,6 +1118,81 @@ test('tapping second voice speaks Pashto and keeps the original translation',asy
  expect(await page.evaluate(()=>window.__deviceCalls[0])).toEqual({text:'سلام',lang:'ps-AF',rate:0.85});
  await expect(page.locator('#result')).toHaveText('سلام');
  await page.evaluate(()=>window.pashtoVoice.stop());
+});
+
+
+test('new conversation aborts the previous translation request without retrying it',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const originalFetch=window.fetch;
+  const calls=[],spoken=[];
+  window.pashtoVoice={unlock(){},stop(){},speak(text){spoken.push(text);return Promise.resolve({played:true})}};
+  window.fetch=(url,options={})=>{
+   if(!String(url).startsWith('https://api.mymemory.translated.net/'))
+    return originalFetch(url,options);
+   const q=new URL(url).searchParams.get('q');
+   const call={q,aborted:false};
+   calls.push(call);
+   if(q==='Old request.')return new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>{
+     call.aborted=true;
+     reject(new DOMException('aborted','AbortError'));
+    },{once:true});
+   });
+   return Promise.resolve({ok:true,json:async()=>({
+    responseStatus:200,responseData:{translatedText:'اوبه'}
+   })});
+  };
+  try{
+   const old=window.pashtoApp.demo('Old request.','en');
+   const current=window.pashtoApp.demo('I need water.','en');
+   const finished=await Promise.all([old,current]);
+   return {calls,spoken,finished,translated:document.getElementById('result').textContent,
+    original:document.getElementById('original').textContent,
+    replayDisabled:document.getElementById('replay').disabled};
+  }finally{window.fetch=originalFetch}
+ });
+ expect(result.calls).toEqual([{q:'Old request.',aborted:true},
+  {q:'I need water.',aborted:false}]);
+ expect(result.finished).toEqual([false,true]);
+ expect(result.spoken).toEqual(['اوبه']);
+ expect(result.translated).toBe('اوبه');
+ expect(result.original).toBe('I need water.');
+ expect(result.replayDisabled).toBe(false);
+});
+
+test('backgrounding during translation aborts its request without speaking or retrying',async({page})=>{
+ const result=await page.evaluate(async()=>{
+  const originalFetch=window.fetch;
+  let requests=0,aborted=0,spoken=0;
+  window.pashtoVoice={unlock(){},stop(){},speak(){spoken++;return Promise.resolve()}};
+  window.fetch=(url,options={})=>{
+   if(!String(url).startsWith('https://api.mymemory.translated.net/'))
+    return originalFetch(url,options);
+   requests++;
+   return new Promise((resolve,reject)=>{
+    options.signal.addEventListener('abort',()=>{
+     aborted++;reject(new DOMException('cancelled','AbortError'));
+    },{once:true});
+   });
+  };
+  try{
+   const pending=window.pashtoApp.demo('Please help.','en');
+   Object.defineProperty(document,'hidden',{configurable:true,value:true});
+   document.dispatchEvent(new Event('visibilitychange'));
+   const finished=await pending;
+   return {requests,aborted,spoken,finished,
+    replayDisabled:document.getElementById('replay').disabled,
+    translated:document.getElementById('result').textContent,
+    status:document.getElementById('status').textContent};
+  }finally{window.fetch=originalFetch}
+ });
+ expect(result.requests).toBe(1);
+ expect(result.aborted).toBe(1);
+ expect(result.spoken).toBe(0);
+ expect(result.finished).toBe(false);
+ expect(result.replayDisabled).toBe(true);
+ expect(result.translated).toBe('…');
+ expect(result.status).toContain('Translation stopped');
 });
 
 test('stalled Pashto device playback restores local voice in mobile browsers',async({page})=>{
