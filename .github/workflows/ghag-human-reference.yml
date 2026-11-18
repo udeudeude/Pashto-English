@@ -38,13 +38,31 @@ jobs:
           import sys
           from pathlib import Path
           sys.path.insert(0, 'experiments')
-          from ghag_public_reference import fetch_reference
-          result=fetch_reference(Path('experiment-results/ghag/preflight/fleurs-reference.wav'))
-          print(json.dumps(result, indent=2))
+          from ghag_public_reference import fetch_reference, verify_preflight_reference
+          base=Path('experiment-results/ghag/preflight')
+          wav=base/'fleurs-reference.wav'
+          transcript=base/'fleurs-reference-transcript.txt'
+          manifest=base/'fleurs-reference-provenance.json'
+          result=fetch_reference(wav, transcript_path=transcript)
+          manifest.write_text(json.dumps(result, indent=2)+'\\n', encoding='utf-8')
+          verified=verify_preflight_reference(wav, transcript, manifest)
+          # Print hashes/metrics only; never log the actual public recording or text.
+          print(json.dumps({
+              'dataset': verified['dataset'], 'config': verified['config'],
+              'row_index': verified['row_index'], 'license': verified['license'],
+              'source_audio_sha256': verified['source_audio_sha256'],
+              'reference_wav_sha256': verified['reference_wav_sha256'],
+              'control_transcript_sha256': verified['control_transcript_sha256'],
+              'reference_metrics': verified['reference_metrics'],
+              'training_cleaner_parity_verified': False,
+          }, indent=2))
           PY
-      - name: Discard downloaded speech after validation
+      - name: Discard downloaded speech and transcript after validation
         if: always()
-        run: rm -f experiment-results/ghag/preflight/fleurs-reference.wav
+        run: |
+          rm -f experiment-results/ghag/preflight/fleurs-reference.wav
+          rm -f experiment-results/ghag/preflight/fleurs-reference-transcript.txt
+          rm -f experiment-results/ghag/preflight/fleurs-reference-provenance.json
   synthesize:
     # Never fetch checkpoint weights for a proposed code change.
     if: github.event_name == 'push' && github.ref == 'refs/heads/experiment/ghag-speaker-inference'
