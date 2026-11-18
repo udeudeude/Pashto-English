@@ -229,7 +229,7 @@ class ReferenceTests(unittest.TestCase):
             metadata = fetch_reference(wav, transcript_path=transcript,
                                        opener=self.fake_opener)
             manifest.write_text(json.dumps(metadata), encoding="utf-8")
-            transcript.write_text("دا یوه بله جمله ده\\n".replace("\\n", "\n"), encoding="utf-8")
+            transcript.write_text("دا یوه بله جمله ده\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "transcript checksum mismatch"):
                 verify_preflight_reference(wav, transcript, manifest)
             transcript.write_text("دا یوه ازموینې جمله ده\n", encoding="utf-8")
