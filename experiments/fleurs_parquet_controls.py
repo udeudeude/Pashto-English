@@ -164,7 +164,8 @@ def fetch_three_controls(*, listing_loader=None, shard_downloader=None,
             raise ValueError("Invalid first-shard download evidence")
         if not destination.is_file() or destination.stat().st_size != meta["bytes"]:
             raise ValueError("Downloaded shard byte count disagrees with evidence")
-        actual_digest = hashlib.sha256(destination.read_bytes()).hexdigest()
+        with destination.open("rb") as source:
+            actual_digest = hashlib.file_digest(source, "sha256").hexdigest()
         if actual_digest != meta["sha256"]:
             raise ValueError("Downloaded shard checksum mismatch")
         controls = shard_parser(destination)
