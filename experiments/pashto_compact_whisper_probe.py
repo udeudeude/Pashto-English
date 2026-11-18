@@ -59,7 +59,8 @@ def recognize(loaded, processor, signal):
 
 def run():
     import torch
-    from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
+    from transformers import (WhisperFeatureExtractor, WhisperTokenizerFast,
+                              WhisperProcessor, AutoModelForSpeechSeq2Seq)
     import transformers
     from huggingface_hub import HfApi
 
@@ -73,11 +74,24 @@ def run():
     # Inspect the model's public frontend BEFORE downloading the 402 MB
     # authentic human-speech shard. Most packaging/import failures can be
     # diagnosed without acquiring even transient recordings.
-    run.phase = "compact-processor-load"
+    # The v5.2-trained repository contains tokenizer.json, but omits
+    # vocab.json/merges.txt while incorrectly asking Transformers 4.46
+    # to instantiate the slow WhisperTokenizer. That calls open(None)
+    # in tokenization_whisper.py. Select the fast tokenizer explicitly;
+    # construct feature extraction from the model's published 16-kHz,
+    # 80-mel, 400-FFT, 160-hop settings instead of falling back to an
+    # unrelated checkpoint or inventing vocabulary files.
+    run.phase = "compact-fast-tokenizer-load"
     started = time.monotonic()
     try:
-        processor = AutoProcessor.from_pretrained(
+        tokenizer = WhisperTokenizerFast.from_pretrained(
             MODEL_ID, revision=revision, trust_remote_code=False, token=False)
+        if tokenizer.convert_tokens_to_ids("<|ps|>") == tokenizer.unk_token_id:
+            raise ValueError("Pashto language token is missing from candidate vocabulary")
+        extractor = WhisperFeatureExtractor(
+            feature_size=80, sampling_rate=16000, hop_length=160,
+            n_fft=400, n_samples=480000, return_attention_mask=False)
+        processor = WhisperProcessor(feature_extractor=extractor, tokenizer=tokenizer)
     except (ImportError, TypeError, ValueError) as error:
         # Only report fixed dependency categories and redacted call-frame
         # names, NEVER raw exception text, URLs or local filesystem paths.
