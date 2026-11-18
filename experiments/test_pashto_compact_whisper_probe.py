@@ -73,7 +73,7 @@ class CompactPashtoProbeTests(unittest.TestCase):
             HfApi=lambda: SimpleNamespace(model_info=lambda *a, **k: illegal))
         fake_trans = SimpleNamespace(
             WhisperFeatureExtractor=object, WhisperTokenizerFast=object,
-            WhisperProcessor=object, AutoModelForSpeechSeq2Seq=object)
+            AutoModelForSpeechSeq2Seq=object)
         with patch.dict(sys.modules, {
             "torch": SimpleNamespace(), "transformers": fake_trans,
             "huggingface_hub": fake_hub
@@ -101,12 +101,9 @@ class CompactPashtoProbeTests(unittest.TestCase):
         def feature(**kwargs):
             called.append(("mel-features", kwargs))
             return "known-feature-extractor"
-        def processor(**kwargs):
-            called.append(("processor", kwargs))
-            return "model-processor"
         fake_trans = SimpleNamespace(
             WhisperFeatureExtractor=feature, WhisperTokenizerFast=Fast,
-            WhisperProcessor=processor, AutoModelForSpeechSeq2Seq=object)
+            AutoModelForSpeechSeq2Seq=object)
         fake_torch = SimpleNamespace(set_num_threads=lambda *_: None)
         with patch.dict(sys.modules, {
             "torch": fake_torch, "transformers": fake_trans,
@@ -121,7 +118,7 @@ class CompactPashtoProbeTests(unittest.TestCase):
         self.assertEqual(called[1][1]["feature_size"], 80)
         self.assertEqual(called[1][1]["hop_length"], 160)
         self.assertEqual(called[1][1]["n_fft"], 400)
-        self.assertEqual(called[2][0], "processor")
+        self.assertEqual(len(called), 2)
         self.assertEqual(compact.run.phase, "authentic-external-test-source")
 
     def test_error_reports_never_expose_sensitive_exception_messages(self):
