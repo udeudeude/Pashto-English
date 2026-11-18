@@ -18,6 +18,25 @@ from pashto_asr_controls import (
     CONTROL_ROWS,
 )
 
+class VerifiedWhisperFrontend:
+    """Exactly the published fast tokenizer and 80-mel feature extractor.
+
+    Transformers 4.46.3 WhisperProcessor erroneously refuses the fast class
+    because it insists on an instance of the slow WhisperTokenizer, whose
+    vocab.json and merges.txt are NOT present in this public checkpoint.
+    Forward only the audio features and text decoding actually required.
+    """
+    def __init__(self, feature_extractor, tokenizer):
+        self.feature_extractor = feature_extractor
+        self.tokenizer = tokenizer
+
+    def __call__(self, audio, **kwargs):
+        return self.feature_extractor(audio, **kwargs)
+
+    def batch_decode(self, tokens, **kwargs):
+        return self.tokenizer.batch_decode(tokens, **kwargs)
+
+
 MODEL_ID = "ihanif/exp_008b_base_cv24_vanilla_no_aug"
 EXPECTED_PUBLIC_SHARD_SHA256 = "f56d12655d4d4f09b6b1fa5228b90e2b4cb52a4485b540250509b16127193bed"
 
@@ -60,7 +79,7 @@ def recognize(loaded, processor, signal):
 def run():
     import torch
     from transformers import (WhisperFeatureExtractor, WhisperTokenizerFast,
-                              WhisperProcessor, AutoModelForSpeechSeq2Seq)
+                              AutoModelForSpeechSeq2Seq)
     import transformers
     from huggingface_hub import HfApi
 
@@ -91,7 +110,7 @@ def run():
         extractor = WhisperFeatureExtractor(
             feature_size=80, sampling_rate=16000, hop_length=160,
             n_fft=400, n_samples=480000, return_attention_mask=False)
-        processor = WhisperProcessor(feature_extractor=extractor, tokenizer=tokenizer)
+        processor = VerifiedWhisperFrontend(extractor, tokenizer)
     except (ImportError, TypeError, ValueError) as error:
         # Only report fixed dependency categories and redacted call-frame
         # names, NEVER raw exception text, URLs or local filesystem paths.
