@@ -72,7 +72,8 @@ class CompactPashtoProbeTests(unittest.TestCase):
         fake_hub = SimpleNamespace(
             HfApi=lambda: SimpleNamespace(model_info=lambda *a, **k: illegal))
         fake_trans = SimpleNamespace(
-            AutoProcessor=object, AutoModelForSpeechSeq2Seq=object)
+            WhisperFeatureExtractor=object, WhisperTokenizerFast=object,
+            WhisperProcessor=object, AutoModelForSpeechSeq2Seq=object)
         with patch.dict(sys.modules, {
             "torch": SimpleNamespace(), "transformers": fake_trans,
             "huggingface_hub": fake_hub
@@ -80,6 +81,48 @@ class CompactPashtoProbeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "license"):
                 compact.run()
         fetch.assert_not_called()
+
+    def test_fast_public_tokenizer_and_exact_mel_config_precede_audio_download(self):
+        called = []
+        good = SimpleNamespace(
+            sha="a" * 40, card_data={"license": "apache-2.0"},
+            pipeline_tag="automatic-speech-recognition")
+        fake_hub = SimpleNamespace(
+            HfApi=lambda: SimpleNamespace(model_info=lambda *a, **k: good))
+        class Tokenizer:
+            unk_token_id = 0
+            def convert_tokens_to_ids(self, token):
+                return 50359 if token == "<|ps|>" else 0
+        class Fast:
+            @staticmethod
+            def from_pretrained(repo, **kwargs):
+                called.append(("fast-tokenizer", repo, kwargs))
+                return Tokenizer()
+        def feature(**kwargs):
+            called.append(("mel-features", kwargs))
+            return "known-feature-extractor"
+        def processor(**kwargs):
+            called.append(("processor", kwargs))
+            return "model-processor"
+        fake_trans = SimpleNamespace(
+            WhisperFeatureExtractor=feature, WhisperTokenizerFast=Fast,
+            WhisperProcessor=processor, AutoModelForSpeechSeq2Seq=object)
+        fake_torch = SimpleNamespace(set_num_threads=lambda *_: None)
+        with patch.dict(sys.modules, {
+            "torch": fake_torch, "transformers": fake_trans,
+            "huggingface_hub": fake_hub}), \
+             patch.object(compact, "fetch_three_controls",
+                          side_effect=RuntimeError("stop before public audio download")):
+            with self.assertRaisesRegex(RuntimeError, "stop before public audio"):
+                compact.run()
+        self.assertEqual(called[0][0], "fast-tokenizer")
+        self.assertEqual(called[0][1], compact.MODEL_ID)
+        self.assertEqual(called[1][1]["sampling_rate"], 16000)
+        self.assertEqual(called[1][1]["feature_size"], 80)
+        self.assertEqual(called[1][1]["hop_length"], 160)
+        self.assertEqual(called[1][1]["n_fft"], 400)
+        self.assertEqual(called[2][0], "processor")
+        self.assertEqual(compact.run.phase, "authentic-external-test-source")
 
     def test_error_reports_never_expose_sensitive_exception_messages(self):
         with tempfile.TemporaryDirectory() as directory:
