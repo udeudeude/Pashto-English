@@ -63,7 +63,11 @@ class ReferenceTests(unittest.TestCase):
                   "?Expires=9999999999&Signature=opaque")
         self.assertEqual(reference_audio_url({"audio": [{"src": cached}]}), cached)
         for url in ("file:///tmp/clip.wav", "http://datasets-server.huggingface.co/assets/x",
-                    "https://evil.example/assets/x", "https://datasets-server.huggingface.co/rows"):
+                    "https://evil.example/assets/x", "https://datasets-server.huggingface.co/rows",
+                    "https://datasets-server.huggingface.co/assets/other/dataset/audio.wav",
+                    "https://datasets-server.huggingface.co/cached-assets/other/data/audio.wav",
+                    "https://datasets-server.huggingface.co:8443/assets/google/fleurs/a.wav",
+                    "https://datasets-server.huggingface.co/assets/google/fleurs/a.wav#untrusted"):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 reference_audio_url({"audio": [{"src": url}]})
 
