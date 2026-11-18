@@ -177,7 +177,9 @@ class PashtoAsrControlTests(unittest.TestCase):
             if index == 1:
                 raise ConnectionError("transient public dataset failure")
             return {"row_index": index}
-        with patch.object(probe, "fetch_control", side_effect=offline_control):
+        with patch.object(probe, "fetch_control", side_effect=offline_control), \
+             patch.object(probe, "fetch_parquet_controls",
+                          side_effect=ConnectionError("both public routes offline")):
             with patch.dict(sys.modules, {
                     "huggingface_hub": fake_hub,
                     "transformers": fake_trans,
@@ -185,7 +187,48 @@ class PashtoAsrControlTests(unittest.TestCase):
                 with self.assertRaises(ConnectionError):
                     probe.run()
         self.assertEqual(calls, [0, 1])
-        self.assertEqual(probe.run.phase, "public-test-audio-row-1")
+        self.assertEqual(probe.run.phase, "public-test-parquet-fallback")
+
+    def test_transient_viewer_error_discards_partial_results_and_falls_back(self):
+        from urllib.error import HTTPError
+        called = []
+        good_controls = [
+            {"row_index": i, "audio_sha256": f"{i+1:064x}"}
+            for i in range(3)
+        ]
+        def viewer(index):
+            called.append(index)
+            if index == 1:
+                raise HTTPError("https://datasets-server.huggingface.co/rows",
+                                503, "unavailable", {}, None)
+            return {"row_index": index, "audio_sha256": "f" * 64}
+        with patch.object(probe, "fetch_control", side_effect=viewer), \
+             patch.object(probe, "fetch_parquet_controls",
+                          return_value=(good_controls, {"retrieval_source": "parquet"})) as fallback:
+            controls, origin = probe.acquire_genuine_controls()
+        self.assertEqual(called, [0, 1])
+        fallback.assert_called_once_with()
+        self.assertEqual(controls, good_controls)
+        self.assertEqual(origin["retrieval_source"], "parquet")
+        self.assertEqual(probe.run.phase, "public-test-parquet-fallback")
+
+    def test_viewer_provenance_failure_never_switches_to_alternative_source(self):
+        with patch.object(probe, "fetch_control",
+                          side_effect=ValueError("invalid Pashto provenance")), \
+             patch.object(probe, "fetch_parquet_controls") as fallback:
+            with self.assertRaisesRegex(ValueError, "provenance"):
+                probe.acquire_genuine_controls()
+        fallback.assert_not_called()
+
+    def test_authorization_failure_does_not_bypass_dataset_access_control(self):
+        from urllib.error import HTTPError
+        with patch.object(probe, "fetch_control",
+                          side_effect=HTTPError("https://datasets-server.huggingface.co/rows",
+                                                403, "forbidden", {}, None)), \
+             patch.object(probe, "fetch_parquet_controls") as fallback:
+            with self.assertRaises(HTTPError):
+                probe.acquire_genuine_controls()
+        fallback.assert_not_called()
 
     def test_fetch_control_uses_test_split_and_trusted_audio(self):
         wav = synthetic_wav()
