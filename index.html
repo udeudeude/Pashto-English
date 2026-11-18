@@ -98,7 +98,7 @@ const appleMobile=/(iPad|iPhone|iPod)/i.test(navigator.userAgent)||
  (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const Recognition=appleMobile?null:(window.SpeechRecognition||window.webkitSpeechRecognition);
 const microphoneSafety=window.pashtoMicrophoneSafety;
-let active=null,lastSpeech=null,requestSeq=0;
+let active=null,lastSpeech=null,requestSeq=0,activeTranslation=null;
 const bilingualStatus=s=>{
  if(s.includes(' / '))return s;
  const translations=[
@@ -194,11 +194,17 @@ function speak(text,lang){
  utterance.onerror=()=>setStatus('Audio playback failed. Tap Replay to retry.');
  window.speechSynthesis.speak(utterance);
 }
-async function translate(text,source,target){
+async function translate(text,source,target,externalSignal){
  const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target;
  let lastError;
  for(let attempt=0;attempt<2;attempt++){
+  // A cancelled conversation may not make another request, even when the
+  // browser reports cancellation as the same AbortError used by a timeout.
+  if(externalSignal?.aborted)throw Error('Translation cancelled.');
   const abort=new AbortController();
+  const cancel=()=>abort.abort();
+  externalSignal?.addEventListener('abort',cancel,{once:true});
+  if(externalSignal?.aborted)abort.abort();
   const deadline=setTimeout(()=>abort.abort(),attempt===0?9000:12000);
   try{
    const response=await fetch(url,{signal:abort.signal,cache:'no-store'});
@@ -219,9 +225,13 @@ async function translate(text,source,target){
     throw Error('The service did not return English text.');
    return candidate;
   }catch(err){
+   if(externalSignal?.aborted)throw err;
    lastError=err.name==='AbortError'?Error('The translation service did not respond in time.'):err;
    if(attempt===1||!(err.name==='AbortError'||err.name==='TypeError'||err.retryable))break;
-  }finally{clearTimeout(deadline)}
+  }finally{
+   clearTimeout(deadline);
+   externalSignal?.removeEventListener('abort',cancel);
+  }
  }
  throw lastError;
 }
@@ -236,8 +246,14 @@ function clearTranslation(){
  window.speechSynthesis?.cancel();
  window.pashtoVoice?.stop();
 }
+function cancelPendingTranslation(){
+ const pending=activeTranslation;
+ activeTranslation=null;
+ if(pending)pending.abort();
+}
 function begin(source){
  const session=++requestSeq;
+ cancelPendingTranslation();
  window.dispatchEvent(new Event('pashto-session-start'));
  if(active)stopBrowserRecognition(active);
  if(source==='en')window.pashtoVoice?.unlock();
@@ -248,6 +264,7 @@ function begin(source){
 // AudioContext while an iPhone is leaving the foreground.
 function cancelCurrentSession(){
  const session=++requestSeq;
+ cancelPendingTranslation();
  window.dispatchEvent(new Event('pashto-session-start'));
  if(active)stopBrowserRecognition(active);
  clearTranslation();
@@ -273,9 +290,14 @@ async function processTranscript(heard,source,session){
  $('original').dir=source==='ps'?'rtl':'ltr';
  const target=source==='ps'?'en':'ps';
  setStatus('Translating…');
+ // Only one translation may own the current conversation. Cancellation also
+ // aborts its network request, rather than merely ignoring its late answer.
+ cancelPendingTranslation();
+ const controller=new AbortController();
+ activeTranslation=controller;
  try{
-  const output=await translate(transcript,source,target);
-  if(session!==requestSeq)return false;
+  const output=await translate(transcript,source,target,controller.signal);
+  if(session!==requestSeq||controller.signal.aborted||document.hidden)return false;
   $('result').textContent=output;
   $('result').removeAttribute('aria-label');
   $('result').lang=target;
@@ -286,8 +308,11 @@ async function processTranscript(heard,source,session){
   speak(output,target);
   return true;
  }catch(err){
+  if(session!==requestSeq||controller.signal.aborted||document.hidden)return false;
   fail((err?.message||'Translation failed.')+' / ژباړه بریالۍ نه شوه. مهرباني وکړئ بیا هڅه وکړئ.',session);
   return false;
+ }finally{
+  if(activeTranslation===controller)activeTranslation=null;
  }
 }
 function stopBrowserRecognition(rec){
@@ -306,11 +331,20 @@ function stopBrowserRecognition(rec){
  $('en').innerHTML='🎤 🗣️ English<small>Speak English / په انګلیسي خبرې وکړئ</small>';
 }
 function stopMicrophoneWhenHidden(){
- if(!active)return;
- // Invalidate late results, so background speech cannot restart playback.
+ const hadMicrophone=!!active;
+ const hadTranslation=!!activeTranslation;
+ // Keep successful visible translations, but stop output and abandon any
+ // unfinished work when the app loses the foreground.
+ window.pashtoVoice?.stop();
+ window.speechSynthesis?.cancel();
+ if(!hadMicrophone&&!hadTranslation)return;
  ++requestSeq;
- stopBrowserRecognition(active);
- setStatus('Microphone stopped because the app is in the background. / د اپ په شالید کې مایکروفون بند شو.');
+ if(active)stopBrowserRecognition(active);
+ cancelPendingTranslation();
+ if(hadMicrophone)
+  setStatus('Microphone stopped because the app is in the background. / د اپ په شالید کې مایکروفون بند شو.');
+ else
+  setStatus('Translation stopped because the app is in the background. / د اپ په شالید کې ژباړه بنده شوه.');
 }
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden)stopMicrophoneWhenHidden();
@@ -356,7 +390,10 @@ function start(lang){
  };
  rec.onend=()=>{
   if(active!==rec)return;
+  // A browser recognition session can end normally without any transcript.
+  // Never leave the controls falsely indicating that the microphone is live.
   stopBrowserRecognition(rec);
+  fail('Speech was not recognized. Tap the microphone to try again. / خبرې ونه پېژندل شوې. د بیا هڅې لپاره مایکروفون کېکاږئ.',session);
  };
  try{
   rec.start();
