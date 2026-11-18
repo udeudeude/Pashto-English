@@ -154,6 +154,7 @@ def main():
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         run.phase = "startup"
+        run.processor_error_frames = []
         result = run()
         status = 0
     except Exception as error:
