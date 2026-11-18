@@ -70,16 +70,28 @@ def run():
     if license_id != MODEL_LICENSE:
         raise ValueError("Recognizer model is no longer public Apache-2.0")
 
+    # Inspect the model's public frontend BEFORE downloading the 402 MB
+    # authentic human-speech shard. Most packaging/import failures can be
+    # diagnosed without acquiring even transient recordings.
+    run.phase = "compact-processor-load"
+    started = time.monotonic()
+    try:
+        processor = AutoProcessor.from_pretrained(
+            MODEL_ID, revision=revision, trust_remote_code=False, token=False)
+    except ImportError as error:
+        # Only report fixed dependency categories, NEVER a raw upstream
+        # exception which can contain paths, URLs or private sample text.
+        message = str(error).lower()
+        names = ("tiktoken", "sentencepiece", "librosa", "soxr",
+                 "protobuf", "tokenizers", "torchvision", "accelerate")
+        category = next((name for name in names if name in message), "unknown")
+        run.phase = "compact-processor-missing-" + category
+        raise
     run.phase = "authentic-external-test-source"
     controls, source = fetch_three_controls()
     verify_source(controls, source)
     torch.set_num_threads(2)
 
-    run.phase = "compact-model-load"
-    started = time.monotonic()
-    run.phase = "compact-processor-load"
-    processor = AutoProcessor.from_pretrained(
-        MODEL_ID, revision=revision, trust_remote_code=False, token=False)
     run.phase = "compact-safetensors-weight-load"
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
         MODEL_ID, revision=revision, trust_remote_code=False,
