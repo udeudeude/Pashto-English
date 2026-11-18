@@ -77,8 +77,10 @@ def run():
 
     run.phase = "compact-model-load"
     started = time.monotonic()
+    run.phase = "compact-processor-load"
     processor = AutoProcessor.from_pretrained(
         MODEL_ID, revision=revision, trust_remote_code=False, token=False)
+    run.phase = "compact-safetensors-weight-load"
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
         MODEL_ID, revision=revision, trust_remote_code=False,
         use_safetensors=True, token=False)
