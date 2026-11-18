@@ -1,5 +1,10 @@
 name: Ghag licensed Pashto reference inference
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/ghag-human-reference.yml'
+      - 'experiments/ghag_public_reference.py'
+      - 'experiments/test_ghag_public_reference.py'
   push:
     branches: [experiment/ghag-speaker-inference]
     paths:
@@ -41,6 +46,8 @@ jobs:
         if: always()
         run: rm -f experiment-results/ghag/preflight/fleurs-reference.wav
   synthesize:
+    # Never fetch checkpoint weights for a proposed code change.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/experiment/ghag-speaker-inference'
     needs: validate-public-reference
     runs-on: ubuntu-latest
     timeout-minutes: 35
